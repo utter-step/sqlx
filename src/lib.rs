@@ -23,6 +23,9 @@ pub use sqlx_core::query_as_mapped;
 #[cfg(feature = "mysql")]
 pub use sqlx_core::mysql::{self, MySql, MySqlConnection, MySqlPool};
 
+#[cfg(feature = "sqlite")]
+pub use sqlx_core::sqlite::{self, Sqlite, SqliteConnection};
+
 #[cfg(feature = "postgres")]
 pub use sqlx_core::postgres::{self, PgConnection, PgPool, Postgres};
 

@@ -39,6 +39,7 @@ runtime-tokio = [ "sqlx-core/runtime-tokio", "sqlx-macros/runtime-tokio" ]
 # database
 postgres = [ "sqlx-core/postgres", "sqlx-macros/postgres" ]
 mysql = [ "sqlx-core/mysql", "sqlx-macros/mysql" ]
+sqlite = [ "sqlx-core/sqlite" ]
 
 # types
 chrono = [ "sqlx-core/chrono", "sqlx-macros/chrono" ]
@@ -83,6 +84,10 @@ required-features = [ "mysql" ]
 [[test]]
 name = "mysql-types-chrono"
 required-features = [ "mysql", "chrono", "macros" ]
+
+[[test]]
+name = "sqlite"
+required-features = [ "sqlite" ]
 
 [profile.release]
 lto = true

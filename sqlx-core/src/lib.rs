@@ -1,5 +1,9 @@
 #![recursion_limit = "256"]
-#![forbid(unsafe_code)]
+// When compiling with support for SQLite we must allow some unsafe code in order to
+// interface with the inherently unsafe C module. This unsafe code is contained
+// to the sqlite module.
+#![cfg_attr(feature = "sqlite", deny(unsafe_code))]
+#![cfg_attr(not(feature = "sqlite"), forbid(unsafe_code))]
 
 #[macro_use]
 pub mod error;
@@ -41,6 +45,9 @@ pub mod mysql;
 
 #[cfg(feature = "postgres")]
 pub mod postgres;
+
+#[cfg(feature = "sqlite")]
+pub mod sqlite;
 
 pub use database::Database;
 
