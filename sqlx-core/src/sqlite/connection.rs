@@ -14,7 +14,7 @@ use crate::connection::{Connect, Connection};
 use crate::url::Url;
 
 pub struct SqliteConnection {
-    handle: NonNull<sqlite3>,
+    pub(super) handle: NonNull<sqlite3>,
 }
 
 // SAFE: A sqlite3 handle is safe to access from multiple threads provided
