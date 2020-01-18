@@ -1,4 +1,5 @@
 use crate::database::Database;
+use crate::sqlite::value::SqliteValue;
 
 /// **SQLite** database driver.
 pub struct Sqlite;
@@ -14,4 +15,8 @@ impl Database for Sqlite {
 
     // TODO: Not sure what this should be
     type TableId = u32;
+
+    type Buffer = Vec<SqliteValue>;
+
+    type Value = SqliteValue;
 }

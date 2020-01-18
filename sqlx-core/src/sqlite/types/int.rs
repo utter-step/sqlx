@@ -2,6 +2,7 @@ use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
 use crate::sqlite::types::{SqliteTypeInfo, ValueKind};
 use crate::sqlite::Sqlite;
+use crate::sqlite::value::SqliteValue;
 use crate::types::HasSqlType;
 
 impl HasSqlType<i8> for Sqlite {
@@ -25,6 +26,12 @@ impl HasSqlType<i32> for Sqlite {
         SqliteTypeInfo {
             kind: ValueKind::Int,
         }
+    }
+}
+
+impl Encode<Sqlite> for i32 {
+    fn encode(&self, values: &mut Vec<SqliteValue>) {
+        values.push(SqliteValue::Int((*self).into()));
     }
 }
 

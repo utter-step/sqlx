@@ -2,39 +2,22 @@ use crate::arguments::Arguments;
 use crate::encode::Encode;
 use crate::sqlite::Sqlite;
 use crate::types::HasSqlType;
-
-pub enum Value {
-    // TODO: Take by reference to remove the allocation
-    Text(String),
-
-    // TODO: Take by reference to remove the allocation
-    Blob(Vec<u8>),
-
-    Double(f64),
-
-    Int(i64),
-
-    Null,
-}
+use crate::sqlite::value::SqliteValue;
 
 #[derive(Default)]
 pub struct SqliteArguments {
-    values: Vec<Value>,
+    values: Vec<SqliteValue>,
 }
 
 impl Arguments for SqliteArguments {
     type Database = Sqlite;
 
     fn len(&self) -> usize {
-        todo!()
+        self.values.len()
     }
 
-    fn size(&self) -> usize {
-        todo!()
-    }
-
-    fn reserve(&mut self, len: usize, size: usize) {
-        todo!()
+    fn reserve(&mut self, len: usize, _size_hint: usize) {
+        self.values.reserve(1);
     }
 
     fn add<T>(&mut self, value: T)
@@ -42,6 +25,6 @@ impl Arguments for SqliteArguments {
         Self::Database: HasSqlType<T>,
         T: Encode<Self::Database>,
     {
-        todo!()
+        value.encode(&mut self.values);
     }
 }

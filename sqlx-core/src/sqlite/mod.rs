@@ -3,6 +3,7 @@ mod connection;
 mod database;
 mod executor;
 mod row;
+mod value;
 mod types;
 
 pub use arguments::SqliteArguments;
