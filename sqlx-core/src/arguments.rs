@@ -17,12 +17,12 @@ pub trait Arguments: Send + Sized + Default + 'static {
     /// Returns the number of values.
     fn len(&self) -> usize;
 
-    /// Returns the size of the arguments, in bytes.
-    fn size(&self) -> usize;
+    #[deprecated]
+    fn size(&self) -> usize { 0 }
 
     /// Reserves the capacity for at least `len` more values (of `size` bytes) to
     /// be added to the arguments without a reallocation.  
-    fn reserve(&mut self, len: usize, size: usize);
+    fn reserve(&mut self, len: usize, size_hint: usize);
 
     /// Add the value to the end of the arguments.
     fn add<T>(&mut self, value: T)
