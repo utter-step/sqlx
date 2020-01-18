@@ -49,7 +49,8 @@ sha2 = { version = "0.8.1", default-features = false, optional = true }
 url = { version = "2.1.1", default-features = false }
 uuid = { version = "0.8.1", default-features = false, optional = true }
 hmac = { version = "0.7.1", default-features = false, optional = true }
-libsqlite3-sys = { version = "0.17.1", default-features = false, features = [ "min_sqlite_version_3_7_16" ], optional = true }
+# TODO: Configure bundled vs bindgen
+libsqlite3-sys = { version = "0.17.1", default-features = false, features = [ "buildtime_bindgen" ], optional = true }
 
 [dev-dependencies]
 matches = "0.1.8"
