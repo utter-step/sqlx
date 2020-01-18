@@ -24,4 +24,12 @@ pub trait Database: 'static {
 
     /// The Rust type of table identifiers for this database.
     type TableId: Display + Clone;
+
+    // TODO: Document
+    // TODO: Potentially [RawArguments] would work
+    type Buffer;
+
+    // TODO: Document
+    // TODO: Potentially [RawValue] would work
+    type Value: ?Sized;
 }

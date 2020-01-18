@@ -20,7 +20,7 @@ pub trait Decode<DB>: Sized
 where
     DB: Database + ?Sized,
 {
-    fn decode(raw: &[u8]) -> Result<Self, DecodeError>;
+    fn decode(raw: &DB::Value) -> Result<Self, DecodeError>;
 
     /// Creates a new value of this type from a `NULL` SQL value.
     ///
@@ -29,7 +29,7 @@ where
         Err(DecodeError::UnexpectedNull)
     }
 
-    fn decode_nullable(raw: Option<&[u8]>) -> Result<Self, DecodeError> {
+    fn decode_nullable(raw: Option<&DB::Value>) -> Result<Self, DecodeError> {
         if let Some(raw) = raw {
             Self::decode(raw)
         } else {
@@ -43,7 +43,7 @@ where
     DB: Database + HasSqlType<T>,
     T: Decode<DB>,
 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
+    fn decode(buf: &DB::Value) -> Result<Self, DecodeError> {
         T::decode(buf).map(Some)
     }
 

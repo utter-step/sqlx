@@ -21,9 +21,9 @@ where
     DB: Database + ?Sized,
 {
     /// Writes the value of `self` into `buf` in the expected format for the database.
-    fn encode(&self, buf: &mut Vec<u8>);
+    fn encode(&self, buf: &mut DB::Buffer);
 
-    fn encode_nullable(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_nullable(&self, buf: &mut DB::Buffer) -> IsNull {
         self.encode(buf);
 
         IsNull::No
@@ -39,11 +39,11 @@ where
     DB: Database + HasSqlType<T>,
     T: Encode<DB>,
 {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut DB::Buffer) {
         (*self).encode(buf)
     }
 
-    fn encode_nullable(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_nullable(&self, buf: &mut DB::Buffer) -> IsNull {
         (*self).encode_nullable(buf)
     }
 
@@ -57,12 +57,12 @@ where
     DB: Database + HasSqlType<T>,
     T: Encode<DB>,
 {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut DB::Buffer) {
         // Forward to [encode_nullable] and ignore the result
         let _ = self.encode_nullable(buf);
     }
 
-    fn encode_nullable(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_nullable(&self, buf: &mut DB::Buffer) -> IsNull {
         if let Some(self_) = self {
             self_.encode(buf);
 
