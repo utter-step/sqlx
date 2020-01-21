@@ -6,16 +6,12 @@ use crate::types::HasSqlType;
 
 impl HasSqlType<f32> for Sqlite {
     fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo {
-            kind: ValueKind::Double,
-        }
+        SqliteTypeInfo::new(ValueKind::Double)
     }
 }
 
 impl HasSqlType<f64> for Sqlite {
     fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo {
-            kind: ValueKind::Double,
-        }
+        SqliteTypeInfo::new(ValueKind::Double)
     }
 }

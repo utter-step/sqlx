@@ -1,7 +1,8 @@
-use core::ptr::null_mut;
+use core::ptr::{null_mut, NonNull};
 use core::i32;
 
 use std::convert::TryInto;
+use std::sync::Arc;
 
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -9,12 +10,12 @@ use libsqlite3_sys::{sqlite3_prepare_v3, SQLITE_OK, sqlite3_stmt, SQLITE_PREPARE
 
 use crate::describe::Describe;
 use crate::executor::Executor;
+use crate::sqlite::statement::{Step, Statement};
 use crate::sqlite::{Sqlite, SqliteArguments, SqliteConnection, SqliteRow};
 
 impl SqliteConnection {
-    fn prepare(&mut self, query: &str) {
+    fn prepare(&mut self, query: &str) -> crate::Result<Statement> {
         // TODO: Cache?
-
         let mut statement: *mut sqlite3_stmt = null_mut();
 
         // TODO: Handle the error when there are internal NULs in the query
@@ -28,7 +29,6 @@ impl SqliteConnection {
         // TODO: Contribute this back to libsqlite3-sys, these flags should be u32
         let flags = (SQLITE_PREPARE_PERSISTENT | SQLITE_PREPARE_NO_VTAB) as u32; 
 
-        // SAFE: [filename] and [statement] are valid
         // <https://www.sqlite.org/c3ref/prepare.html>
         #[allow(unsafe_code)]
         let status = unsafe {
@@ -41,7 +41,8 @@ impl SqliteConnection {
             panic!("not ok: {}", status);
         }
 
-        todo!()
+        // TODO: Handle the error when NULL is returned
+        Ok(Statement(NonNull::new(statement).unwrap()))
     }
 }
 
@@ -57,8 +58,13 @@ impl Executor for SqliteConnection {
         query: &'q str,
         args: SqliteArguments,
     ) -> BoxFuture<'e, crate::Result<u64>> {
-        let statement = self.prepare(query);
-        todo!()
+        let mut statement = self.prepare(query).unwrap();
+
+        statement.step().unwrap();
+        // statement.reset();
+        
+        todo!();
+        
     }
 
     fn fetch<'e, 'q: 'e>(
@@ -66,15 +72,32 @@ impl Executor for SqliteConnection {
         query: &'q str,
         args: SqliteArguments,
     ) -> BoxStream<'e, crate::Result<SqliteRow>> {
-        let statement = self.prepare(query);
-        todo!()
+        Box::pin(async_stream::try_stream! {
+            let mut statement = self.prepare(query)?;
+
+            let columns = self.column_names(&mut statement)?;
+
+            while let Step::Row = statement.step()? {
+                let mut values = Vec::with_capacity(columns.len());
+
+                for i in 0..columns.len() {
+                    values.push(statement.value(i));
+                }
+
+                yield SqliteRow { 
+                    values: values.into_boxed_slice(), 
+                    columns: Arc::clone(&columns),
+                }
+            }
+        })
     }
 
     fn describe<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
     ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>> {
-        let statement = self.prepare(query);
-        todo!()
+        Box::pin(async move {
+            self.prepare(query)?.describe()
+        })
     }
 }

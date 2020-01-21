@@ -6,9 +6,7 @@ use crate::types::HasSqlType;
 
 impl HasSqlType<[u8]> for Sqlite {
     fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo {
-            kind: ValueKind::Blob,
-        }
+        SqliteTypeInfo::new(ValueKind::Blob)
     }
 }
 

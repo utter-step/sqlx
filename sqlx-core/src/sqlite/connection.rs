@@ -1,5 +1,7 @@
 use core::ptr::{null, null_mut, NonNull};
 
+use std::sync::Arc;
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ffi::CString;
 
@@ -10,6 +12,7 @@ use libsqlite3_sys::{
     SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
 };
 
+use crate::sqlite::statement::{Statement};
 use crate::connection::{Connect, Connection};
 use crate::url::Url;
 
@@ -40,14 +43,11 @@ impl SqliteConnection {
 
         // [SQLITE_OPEN_NOMUTEX] will instruct [sqlite3_open_v2] to return an error if it
         // cannot satisfy our wish for a thread-safe, lock-free connection object
-        // TODO: Expose configuration for these
         let flags = SQLITE_OPEN_READWRITE
             | SQLITE_OPEN_CREATE
             | SQLITE_OPEN_NOMUTEX
             | SQLITE_OPEN_SHAREDCACHE;
 
-        // SAFE: [filename] and [handle] must point to valid memory
-        //
         // <https://www.sqlite.org/c3ref/open.html>
         #[allow(unsafe_code)]
         let status = unsafe {
@@ -65,6 +65,11 @@ impl SqliteConnection {
             // TODO: Handle the error when NULL is returned from [sqlite3_open_v2]
             handle: NonNull::new(handle).unwrap(),
         })
+    }
+
+    pub(super) fn column_names(&mut self, statement: &mut Statement) -> crate::Result<Arc<HashMap<Box<str>, usize>>> {
+        // TODO: Add a cache here
+        Ok(Arc::new(statement.column_names()?))
     }
 }
 

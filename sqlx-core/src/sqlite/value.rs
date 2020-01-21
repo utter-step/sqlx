@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SqliteValue {
     // TODO: Take by reference to remove the allocation
     Text(String),
@@ -9,6 +9,4 @@ pub enum SqliteValue {
     Double(f64),
 
     Int(i64),
-
-    Null,
 }

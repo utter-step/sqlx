@@ -49,8 +49,13 @@ sha2 = { version = "0.8.1", default-features = false, optional = true }
 url = { version = "2.1.1", default-features = false }
 uuid = { version = "0.8.1", default-features = false, optional = true }
 hmac = { version = "0.7.1", default-features = false, optional = true }
-# TODO: Configure bundled vs bindgen
-libsqlite3-sys = { version = "0.17.1", default-features = false, features = [ "buildtime_bindgen" ], optional = true }
+
+# <https://github.com/jgallagher/rusqlite/tree/master/libsqlite3-sys>
+[dependencies.libsqlite3-sys]
+version = "0.17.1"
+optional = true
+default-features = false
+features = [ "pkg-config", "vcpkg", "bundled" ]
 
 [dev-dependencies]
 matches = "0.1.8"

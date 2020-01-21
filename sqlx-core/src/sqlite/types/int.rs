@@ -7,25 +7,19 @@ use crate::types::HasSqlType;
 
 impl HasSqlType<i8> for Sqlite {
     fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo {
-            kind: ValueKind::Int,
-        }
+        SqliteTypeInfo::new(ValueKind::Int)
     }
 }
 
 impl HasSqlType<i16> for Sqlite {
     fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo {
-            kind: ValueKind::Int,
-        }
+        SqliteTypeInfo::new(ValueKind::Int)
     }
 }
 
 impl HasSqlType<i32> for Sqlite {
     fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo {
-            kind: ValueKind::Int,
-        }
+        SqliteTypeInfo::new(ValueKind::Int)
     }
 }
 
@@ -35,10 +29,19 @@ impl Encode<Sqlite> for i32 {
     }
 }
 
+impl Decode<Sqlite> for i32 {
+    fn decode(value: SqliteValue) -> Result<i32, DecodeError> {
+        Ok(match value {
+            // TODO: Cast?
+            SqliteValue::Int(val) => val as i32,
+
+            _ => unimplemented!()
+        })
+    }
+}
+
 impl HasSqlType<i64> for Sqlite {
     fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo {
-            kind: ValueKind::Int,
-        }
+        SqliteTypeInfo::new(ValueKind::Int)
     }
 }

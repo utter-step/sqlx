@@ -31,5 +31,5 @@ pub trait Database: 'static {
 
     // TODO: Document
     // TODO: Potentially [RawValue] would work
-    type Value: ?Sized;
+    type Value: Sized;
 }
