@@ -10,7 +10,7 @@ pub use type_id::TypeId;
 // REQUESTS
 mod bind;
 mod cancel_request;
-mod close;
+// mod close;
 mod describe;
 mod encode;
 mod execute;
@@ -28,7 +28,7 @@ mod terminate;
 
 pub use bind::Bind;
 pub use cancel_request::CancelRequest;
-pub use close::Close;
+// pub use close::Close;
 pub use describe::Describe;
 pub use encode::Encode;
 pub use execute::Execute;
@@ -37,6 +37,7 @@ pub use parse::Parse;
 pub use password_message::PasswordMessage;
 pub use query::Query;
 pub use sasl::{hi, SaslInitialResponse, SaslResponse};
+#[cfg(feature = "tls")]
 pub use ssl_request::SslRequest;
 pub use startup_message::StartupMessage;
 pub use statement::StatementId;
