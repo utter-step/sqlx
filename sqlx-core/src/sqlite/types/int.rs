@@ -1,8 +1,8 @@
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
 use crate::sqlite::types::{SqliteTypeInfo, ValueKind};
-use crate::sqlite::Sqlite;
 use crate::sqlite::value::SqliteValue;
+use crate::sqlite::Sqlite;
 use crate::types::HasSqlType;
 
 impl HasSqlType<i8> for Sqlite {
@@ -35,7 +35,7 @@ impl Decode<Sqlite> for i32 {
             // TODO: Cast?
             SqliteValue::Int(val) => val as i32,
 
-            _ => unimplemented!()
+            _ => unimplemented!(),
         })
     }
 }

@@ -1,9 +1,9 @@
 use core::ptr::{null, null_mut, NonNull};
 
-use std::sync::Arc;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ffi::CString;
+use std::sync::Arc;
 
 use async_std::task::spawn_blocking;
 use futures_core::future::BoxFuture;
@@ -12,8 +12,8 @@ use libsqlite3_sys::{
     SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
 };
 
-use crate::sqlite::statement::{Statement};
 use crate::connection::{Connect, Connection};
+use crate::sqlite::statement::Statement;
 use crate::url::Url;
 
 pub struct SqliteConnection {
@@ -67,9 +67,12 @@ impl SqliteConnection {
         })
     }
 
-    pub(super) fn column_names(&mut self, statement: &mut Statement) -> crate::Result<Arc<HashMap<Box<str>, usize>>> {
+    pub(super) fn column_names(
+        &mut self,
+        statement: &mut Statement,
+    ) -> Arc<HashMap<Box<str>, usize>> {
         // TODO: Add a cache here
-        Ok(Arc::new(statement.column_names()?))
+        Arc::new(statement.column_names())
     }
 }
 

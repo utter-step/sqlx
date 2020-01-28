@@ -1,12 +1,11 @@
-use sqlx::{Connect as _, Connection as _, Executor as _, SqliteConnection, Row as _};
+use sqlx::{Connect as _, Connection as _, Executor as _, Row as _, SqliteConnection};
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_fetches_one() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
-    let row = sqlx::query("SELECT 10")
-        .fetch_one(&mut conn).await?;
+    let row = sqlx::query("SELECT 10").fetch_one(&mut conn).await?;
 
     // num values
     assert_eq!(row.len(), 1);
@@ -23,8 +22,7 @@ async fn it_fetches_one() -> anyhow::Result<()> {
 async fn it_describes_a_system_table() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
-    let desc = conn.describe("SELECT * FROM sqlite_master")
-        .await?;
+    let desc = conn.describe("SELECT * FROM sqlite_master").await?;
 
     assert_eq!(desc.param_types.len(), 0);
 

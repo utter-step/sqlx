@@ -1,18 +1,14 @@
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::decode::Decode;
 use crate::row::{Row, RowIndex};
-use crate::sqlite::Sqlite;
 use crate::sqlite::value::SqliteValue;
+use crate::sqlite::Sqlite;
 use crate::types::HasSqlType;
 
 pub struct SqliteRow {
-    // TODO: Switch to "checking out" a statement ptr so we can use this directly to decode values
-    //       from. Decoding to a [SqliteValue] isn't "good enough (tm)"
-
-    // pub(super) statement: Statement,
-
+    // pub(super) statement: Statement<'cur>,
     pub(super) values: Box<[Option<SqliteValue>]>,
     pub(super) columns: Arc<HashMap<Box<str>, usize>>,
 }

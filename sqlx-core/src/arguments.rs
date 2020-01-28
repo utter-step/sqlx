@@ -18,7 +18,9 @@ pub trait Arguments: Send + Sized + Default + 'static {
     fn len(&self) -> usize;
 
     #[deprecated]
-    fn size(&self) -> usize { 0 }
+    fn size(&self) -> usize {
+        0
+    }
 
     /// Reserves the capacity for at least `len` more values (of `size` bytes) to
     /// be added to the arguments without a reallocation.  

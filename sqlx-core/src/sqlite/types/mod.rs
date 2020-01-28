@@ -26,16 +26,18 @@ pub struct SqliteTypeInfo {
 }
 
 impl SqliteTypeInfo {
-    pub(crate) const NULL: SqliteTypeInfo = SqliteTypeInfo { kind: ValueKind::Null };
+    pub(crate) const NULL: SqliteTypeInfo = SqliteTypeInfo {
+        kind: ValueKind::Null,
+    };
 
     pub(crate) fn new(kind: ValueKind) -> Self {
         SqliteTypeInfo { kind }
     }
 
     /// Returns `true` if the type could not be resolved.
-    /// 
+    ///
     ///  * Bind parameters will have a `NULL` type.
-    /// 
+    ///
     ///  * Result columns that are expressions will have a `NULL` type.
     ///
     pub fn is_null(&self) -> bool {

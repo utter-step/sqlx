@@ -1,28 +1,25 @@
-use core::ptr::{null_mut, NonNull};
 use core::i32;
+use core::ptr::{null_mut, NonNull};
 
-use std::str;
-use std::ffi::CStr;
-use std::convert::TryInto;
 use std::collections::HashMap;
+use std::convert::TryInto;
+use std::ffi::CStr;
+use std::str;
 
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use libsqlite3_sys::{
-    SQLITE_INTEGER ,
-            SQLITE_BLOB ,
-            SQLITE_NULL ,
-            SQLITE_TEXT ,
-            SQLITE_FLOAT,
-            sqlite3_column_int64,
-    
-    sqlite3_step, sqlite3_bind_parameter_count, sqlite3_column_decltype, sqlite3_column_type, sqlite3_column_name, sqlite3_column_count, SQLITE_DONE, SQLITE_ROW, sqlite3_stmt, sqlite3_finalize};
+    sqlite3_bind_parameter_count, sqlite3_column_count, sqlite3_column_decltype,
+    sqlite3_column_int64, sqlite3_column_name, sqlite3_column_type, sqlite3_finalize, sqlite3_step,
+    sqlite3_stmt, SQLITE_BLOB, SQLITE_DONE, SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQLITE_ROW,
+    SQLITE_TEXT,
+};
 
-use crate::describe::{Describe, Column};
+use crate::describe::{Column, Describe};
 use crate::executor::Executor;
-use crate::sqlite::value::SqliteValue;
 use crate::sqlite::types::ValueKind;
-use crate::sqlite::{Sqlite, SqliteTypeInfo, SqliteArguments, SqliteConnection, SqliteRow};
+use crate::sqlite::value::SqliteValue;
+use crate::sqlite::{Sqlite, SqliteArguments, SqliteConnection, SqliteRow, SqliteTypeInfo};
 
 pub(super) enum Step {
     // indicates that an operation has completed
@@ -39,12 +36,14 @@ pub(crate) struct Statement(pub(super) NonNull<sqlite3_stmt>);
 unsafe impl Send for Statement {}
 
 impl Statement {
+    pub(super) fn clone(&self) -> Self {
+        Self(self.0)
+    }
+
     pub(super) fn step(&mut self) -> crate::Result<Step> {
         // <https://www.sqlite.org/c3ref/step.html>
         #[allow(unsafe_code)]
-        let status = unsafe {
-            sqlite3_step(self.0.as_ptr())
-        };
+        let status = unsafe { sqlite3_step(self.0.as_ptr()) };
 
         let step = match status {
             SQLITE_DONE => Step::Done,
@@ -73,9 +72,7 @@ impl Statement {
     fn value_i64(&mut self, i: usize) -> SqliteValue {
         // <https://www.sqlite.org/c3ref/bind_parameter_count.html>
         #[allow(unsafe_code)]
-        let val = unsafe {
-            sqlite3_column_int64(self.0.as_ptr(), i as _)
-        };
+        let val = unsafe { sqlite3_column_int64(self.0.as_ptr(), i as _) };
 
         SqliteValue::Int(val)
     }
@@ -83,19 +80,17 @@ impl Statement {
     fn bind_parameter_count(&mut self) -> usize {
         // <https://www.sqlite.org/c3ref/bind_parameter_count.html>
         #[allow(unsafe_code)]
-        let count = unsafe {
-            sqlite3_bind_parameter_count(self.0.as_ptr())
-        };
+        let count = unsafe { sqlite3_bind_parameter_count(self.0.as_ptr()) };
 
         count as usize
     }
 
     pub(super) fn describe(&mut self) -> crate::Result<Describe<Sqlite>> {
         let num_params = self.bind_parameter_count();
-        
+
         // All bind params are null in sqlite
         let param_types = vec![SqliteTypeInfo::NULL; num_params].into_boxed_slice();
-        
+
         let num_columns = self.column_count();
 
         let mut columns = Vec::with_capacity(num_columns);
@@ -107,7 +102,7 @@ impl Statement {
             columns.push(Column {
                 name: Some(name),
                 table_id: None,
-                type_info: type_, 
+                type_info: type_,
             });
         }
 
@@ -139,7 +134,7 @@ impl Statement {
             "blob" => SqliteTypeInfo::new(ValueKind::Blob),
 
             // TODO: What are the possible return values here?
-            _ => unreachable!("unexpected type name: {}", name)
+            _ => unreachable!("unexpected type name: {}", name),
         }
     }
 
@@ -148,13 +143,15 @@ impl Statement {
         // [sqlite3_column_name]: <https://www.sqlite.org/c3ref/column_name.html>
         #[allow(unsafe_code)]
         let name = unsafe {
-            str::from_utf8_unchecked(CStr::from_ptr(sqlite3_column_name(self.0.as_ptr(), i as _)).to_bytes())
+            str::from_utf8_unchecked(
+                CStr::from_ptr(sqlite3_column_name(self.0.as_ptr(), i as _)).to_bytes(),
+            )
         };
 
         name.into()
     }
 
-    pub(super) fn column_names(&mut self) -> crate::Result<HashMap<Box<str>, usize>> {
+    pub(super) fn column_names(&mut self) -> HashMap<Box<str>, usize> {
         let count = self.column_count();
         let mut names = HashMap::with_capacity(count);
 
@@ -162,15 +159,13 @@ impl Statement {
             names.insert(self.column_name(i), i);
         }
 
-        Ok(names)
+        names
     }
 
     fn column_type(&mut self, i: usize) -> ValueKind {
         // <https://www.sqlite.org/c3ref/column_count.html>
         #[allow(unsafe_code)]
-        let typ = unsafe {
-            sqlite3_column_type(self.0.as_ptr(), i as _)
-        };
+        let typ = unsafe { sqlite3_column_type(self.0.as_ptr(), i as _) };
 
         match typ {
             SQLITE_INTEGER => ValueKind::Int,
@@ -180,26 +175,22 @@ impl Statement {
             SQLITE_FLOAT => ValueKind::Double,
 
             // TODO: What are the possible return values here?
-            _ => unreachable!("unexpected column type: {}", typ)
+            _ => unreachable!("unexpected column type: {}", typ),
         }
     }
 
     pub(super) fn column_count(&mut self) -> usize {
         // <https://www.sqlite.org/c3ref/column_count.html>
         #[allow(unsafe_code)]
-        let count = unsafe {
-            sqlite3_column_count(self.0.as_ptr())
-        };
+        let count = unsafe { sqlite3_column_count(self.0.as_ptr()) };
 
         count as usize
     }
-    
+
     pub(super) fn finalize(&mut self) -> crate::Result<()> {
         // <https://www.sqlite.org/c3ref/finalize.html>
         #[allow(unsafe_code)]
-        let status = unsafe {
-            sqlite3_finalize(self.0.as_ptr())
-        };
+        let status = unsafe { sqlite3_finalize(self.0.as_ptr()) };
 
         Ok(())
     }
