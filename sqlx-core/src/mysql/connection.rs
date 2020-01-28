@@ -12,11 +12,14 @@ use crate::io::{Buf, BufMut, BufStream, MaybeTlsStream};
 use crate::mysql::error::MySqlError;
 use crate::mysql::protocol::{
     AuthPlugin, AuthSwitch, Capabilities, Decode, Encode, EofPacket, ErrPacket, Handshake,
-    HandshakeResponse, OkPacket, SslRequest,
+    HandshakeResponse, OkPacket,
 };
 use crate::mysql::rsa;
 use crate::mysql::util::xor_eq;
 use crate::url::Url;
+
+#[cfg(feature = "tls")]
+use crate::mysql::protocol::SslRequest;
 
 // Size before a packet is split
 const MAX_PACKET_SIZE: u32 = 1024;
@@ -483,10 +486,16 @@ impl MySqlConnection {
         // https://mariadb.com/kb/en/connection/
 
         // On connect, server immediately sends the handshake
+        #[cfg(feature = "tls")]
         let mut handshake = self_.receive_handshake(&url).await?;
 
+        #[cfg(not(feature = "tls"))]
+        let handshake = self_.receive_handshake(&url).await?;
+
+        #[cfg(feature = "tls")]
         let ca_file = url.get_param("ssl-ca");
 
+        #[cfg(feature = "tls")]
         let ssl_mode = url.get_param("ssl-mode").unwrap_or(
             if ca_file.is_some() {
                 "VERIFY_CA"
@@ -496,8 +505,10 @@ impl MySqlConnection {
             .into(),
         );
 
+        #[cfg(feature = "tls")]
         let supports_ssl = handshake.server_capabilities.contains(Capabilities::SSL);
 
+        #[cfg(feature = "tls")]
         match &*ssl_mode {
             "DISABLED" => (),
 
