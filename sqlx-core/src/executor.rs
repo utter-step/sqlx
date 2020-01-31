@@ -1,4 +1,4 @@
-use crate::database::Database;
+use crate::database::{Database, HasCursor, HasRawRow};
 use crate::describe::Describe;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -29,40 +29,40 @@ pub trait Executor {
         &'e mut self,
         query: &'q str,
         args: <Self::Database as Database>::Arguments,
-    ) -> BoxStream<'e, crate::Result<<Self::Database as Database>::Row>>;
+    ) -> <Self::Database as HasCursor<'e>>::Cursor;
 
-    /// Executes the query and returns up to resulting record.
-    ///
-    /// * [crate::Error::FoundMoreThanOne] will be returned if the query produced more than 1 row.
-    fn fetch_optional<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-        args: <Self::Database as Database>::Arguments,
-    ) -> BoxFuture<'e, crate::Result<Option<<Self::Database as Database>::Row>>> {
-        let mut s = self.fetch(query, args);
-        Box::pin(async move {
-            match s.try_next().await? {
-                Some(val) => {
-                    if s.try_next().await?.is_some() {
-                        Err(crate::Error::FoundMoreThanOne)
-                    } else {
-                        Ok(Some(val))
-                    }
-                }
-                None => Ok(None),
-            }
-        })
-    }
+    // /// Executes the query and returns up to resulting record.
+    // ///
+    // /// * [crate::Error::FoundMoreThanOne] will be returned if the query produced more than 1 row.
+    // fn fetch_optional<'e, 'q: 'e>(
+    //     &'e mut self,
+    //     query: &'q str,
+    //     args: <Self::Database as Database>::Arguments,
+    // ) -> BoxFuture<'e, crate::Result<Option<<Self::Database as HasRawRow<'e>>::RawRow>>> {
+    //     let mut s = self.fetch(query, args);
+    //     Box::pin(async move {
+    //         match s.try_next().await? {
+    //             Some(val) => {
+    //                 if s.try_next().await?.is_some() {
+    //                     Err(crate::Error::FoundMoreThanOne)
+    //                 } else {
+    //                     Ok(Some(val))
+    //                 }
+    //             }
+    //             None => Ok(None),
+    //         }
+    //     })
+    // }
 
-    /// Execute the query and return at most one resulting record.
-    fn fetch_one<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-        args: <Self::Database as Database>::Arguments,
-    ) -> BoxFuture<'e, crate::Result<<Self::Database as Database>::Row>> {
-        let mut s = self.fetch(query, args);
-        Box::pin(async move { s.try_next().await?.ok_or(crate::Error::NotFound) })
-    }
+    // /// Execute the query and return at most one resulting record.
+    // fn fetch_one<'e, 'q: 'e>(
+    //     &'e mut self,
+    //     query: &'q str,
+    //     args: <Self::Database as Database>::Arguments,
+    // ) -> BoxFuture<'e, crate::Result<<Self::Database as HasRawRow<'e>>::RawRow>> {
+    //     let mut s = self.fetch(query, args);
+    //     Box::pin(async move { s.try_next().await?.ok_or(crate::Error::NotFound) })
+    // }
 
     #[doc(hidden)]
     fn describe<'e, 'q: 'e>(

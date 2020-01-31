@@ -1,66 +1,70 @@
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::marker::PhantomData;
+use std::sync::Arc;
 
+use libsqlite3_sys::sqlite3_column_int;
+
+use crate::database::{HasRawRow, HasRawValue};
 use crate::decode::Decode;
-use crate::row::{Row, RowIndex};
+use crate::row::RawRow;
+use crate::sqlite::arguments::SqliteValue;
+use crate::sqlite::statement::Statement;
 use crate::sqlite::Sqlite;
-use crate::sqlite::value::SqliteValue;
-use crate::types::HasSqlType;
+use crate::types::Type;
 
-pub struct SqliteRow {
-    // TODO: Switch to "checking out" a statement ptr so we can use this directly to decode values
-    //       from. Decoding to a [SqliteValue] isn't "good enough (tm)"
-
-    // pub(super) statement: Statement,
-
-    pub(super) values: Box<[Option<SqliteValue>]>,
-    pub(super) columns: Arc<HashMap<Box<str>, usize>>,
+pub struct SqliteValueProxy<'a> {
+    row: &'a SqliteRow<'a>,
+    index: i32,
 }
 
-impl Row for SqliteRow {
+pub struct SqliteRow<'a> {
+    // pub(super) conn: &'a super::SqliteConnection,
+    pub(super) statement: &'a Statement,
+    // pub(super) phantom: PhantomData<&'a ()>,
+    // pub(super) columns: Arc<HashMap<Box<str>, usize>>,
+}
+
+#[allow(unsafe_code)]
+unsafe impl<'a> Sync for SqliteRow<'a> {}
+
+impl<'a> RawRow<'a> for SqliteRow<'a> {
     type Database = Sqlite;
 
     fn len(&self) -> usize {
-        self.values.len()
+        // self.values.len()
+        todo!()
     }
 
-    fn get<T, I>(&self, index: I) -> T
+    fn get<T>(&'a self, index: usize) -> T
     where
-        Self::Database: HasSqlType<T>,
-        I: RowIndex<Self>,
-        T: Decode<Self::Database>,
+        T: Type<Self::Database>,
+        T: Decode<'a, Self::Database>,
     {
-        index.try_get(self).unwrap()
+        // FIXME: Handle UNWRAP better
+        Decode::decode(SqliteValueProxy {
+            row: self,
+            index: index as i32,
+        })
+        .unwrap()
     }
 }
 
-// More of the same.. really need to fix https://github.com/launchbadge/sqlx/issues/49
-
-impl RowIndex<SqliteRow> for usize {
-    fn try_get<T>(&self, row: &SqliteRow) -> crate::Result<T>
-    where
-        <SqliteRow as Row>::Database: HasSqlType<T>,
-        T: Decode<<SqliteRow as Row>::Database>,
-    {
-        Ok(Decode::decode_nullable(row.values[*self].clone())?)
+impl<'a> SqliteValueProxy<'a> {
+    pub(super) fn int(&self) -> i32 {
+        // <https://www.sqlite.org/c3ref/column_int.html>
+        #[allow(unsafe_code)]
+        unsafe {
+            sqlite3_column_int(self.row.statement.0.as_ptr(), self.index)
+        }
     }
 }
 
-impl RowIndex<SqliteRow> for &'_ str {
-    fn try_get<T>(&self, row: &SqliteRow) -> crate::Result<T>
-    where
-        <SqliteRow as Row>::Database: HasSqlType<T>,
-        T: Decode<<SqliteRow as Row>::Database>,
-    {
-        let index = row
-            .columns
-            .get(*self)
-            .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))?;
-
-        let value = Decode::decode_nullable(row.values[*index].clone())?;
-
-        Ok(value)
-    }
+impl<'a> HasRawValue<'a> for Sqlite {
+    type RawValue = SqliteValueProxy<'a>;
 }
 
-impl_from_row_for_row!(SqliteRow);
+impl<'a> HasRawRow<'a> for Sqlite {
+    type Database = Sqlite;
+
+    type RawRow = SqliteRow<'a>;
+}

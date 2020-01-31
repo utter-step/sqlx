@@ -38,10 +38,8 @@ where
             .await
     }
 
-    /// Execute the query, returning the rows as a futures `Stream`.
-    ///
-    /// Use [fetch_all] if you want a `Vec` instead.
-    pub fn fetch<'e, E>(self, executor: &'e mut E) -> BoxStream<'e, crate::Result<DB::Row>>
+    /// Execute the query, returning a [Cursor] 
+    pub fn fetch<'e, E>(self, executor: &'e mut E) -> BoxStream<'e, crate::Result<DB::RawRow<'e>>>
     where
         E: Executor<Database = DB>,
         'q: 'e,
@@ -49,22 +47,22 @@ where
         executor.fetch(self.query, self.arguments.into_arguments())
     }
 
-    /// Execute the query and get all rows from the result as a `Vec`.
-    pub async fn fetch_all<E>(self, executor: &mut E) -> crate::Result<Vec<DB::Row>>
-    where
-        E: Executor<Database = DB>,
-    {
-        executor
-            .fetch(self.query, self.arguments.into_arguments())
-            .try_collect()
-            .await
-    }
+    // /// Execute the query and get all rows from the result as a `Vec`.
+    // pub async fn fetch_all<E>(self, executor: &mut E) -> crate::Result<Vec<DB::RawRow<'e>>>
+    // where
+    //     E: Executor<Database = DB>,
+    // {
+    //     executor
+    //         .fetch(self.query, self.arguments.into_arguments())
+    //         .try_collect()
+    //         .await
+    // }
 
     /// Execute a query which should return either 0 or 1 rows.
     ///
     /// Returns [crate::Error::FoundMoreThanOne] if more than 1 row is returned.
     /// Use `.fetch().try_next()` if you just want one row.
-    pub async fn fetch_optional<E>(self, executor: &mut E) -> crate::Result<Option<DB::Row>>
+    pub async fn fetch_optional<E>(self, executor: &mut E) -> crate::Result<Option<DB::RawRow<'e>>>
     where
         E: Executor<Database = DB>,
     {
@@ -77,7 +75,7 @@ where
     ///
     /// * Returns [crate::Error::NotFound] if 0 rows are returned.
     /// * Returns [crate::Error::FoundMoreThanOne] if more than one row is returned.
-    pub async fn fetch_one<E>(self, executor: &mut E) -> crate::Result<DB::Row>
+    pub async fn fetch_one<'e, E>(self, executor: &'e mut E) -> crate::Result<<DB as HasRawRow<'e>>::RawRow>
     where
         E: Executor<Database = DB>,
     {

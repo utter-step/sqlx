@@ -1,6 +1,6 @@
 //! Types for returning SQL type information about queries.
 
-use crate::Database;
+use crate::database::Database;
 use std::fmt::{self, Debug};
 
 /// The return type of [Executor::describe].

@@ -1,8 +1,20 @@
 use crate::arguments::Arguments;
 use crate::encode::Encode;
 use crate::sqlite::Sqlite;
-use crate::types::HasSqlType;
-use crate::sqlite::value::SqliteValue;
+use crate::types::Type;
+
+#[derive(Debug, Clone)]
+pub enum SqliteValue {
+    // TODO: Take by reference to remove the allocation
+    Text(String),
+
+    // TODO: Take by reference to remove the allocation
+    Blob(Vec<u8>),
+
+    Double(f64),
+
+    Int(i64),
+}
 
 #[derive(Default)]
 pub struct SqliteArguments {
@@ -22,8 +34,8 @@ impl Arguments for SqliteArguments {
 
     fn add<T>(&mut self, value: T)
     where
-        Self::Database: HasSqlType<T>,
-        T: Encode<Self::Database>,
+        // Self::Database: HasSqlType<T>,
+        T: Encode<Self::Database> + Type<Self::Database>,
     {
         value.encode(&mut self.values);
     }

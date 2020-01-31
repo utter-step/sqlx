@@ -1,23 +1,24 @@
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
+use crate::sqlite::arguments::SqliteValue;
+use crate::sqlite::row::SqliteValueProxy;
 use crate::sqlite::types::{SqliteTypeInfo, ValueKind};
 use crate::sqlite::Sqlite;
-use crate::sqlite::value::SqliteValue;
-use crate::types::HasSqlType;
+use crate::types::Type;
 
-impl HasSqlType<i8> for Sqlite {
+impl Type<Sqlite> for i8 {
     fn type_info() -> SqliteTypeInfo {
         SqliteTypeInfo::new(ValueKind::Int)
     }
 }
 
-impl HasSqlType<i16> for Sqlite {
+impl Type<Sqlite> for i16 {
     fn type_info() -> SqliteTypeInfo {
         SqliteTypeInfo::new(ValueKind::Int)
     }
 }
 
-impl HasSqlType<i32> for Sqlite {
+impl Type<Sqlite> for i32 {
     fn type_info() -> SqliteTypeInfo {
         SqliteTypeInfo::new(ValueKind::Int)
     }
@@ -29,18 +30,14 @@ impl Encode<Sqlite> for i32 {
     }
 }
 
-impl Decode<Sqlite> for i32 {
-    fn decode(value: SqliteValue) -> Result<i32, DecodeError> {
-        Ok(match value {
-            // TODO: Cast?
-            SqliteValue::Int(val) => val as i32,
-
-            _ => unimplemented!()
-        })
+impl<'a> Decode<'a, Sqlite> for i32 {
+    fn decode(value: SqliteValueProxy<'a>) -> Result<i32, DecodeError> {
+        // Even NULL will come through as 0
+        Ok(value.int())
     }
 }
 
-impl HasSqlType<i64> for Sqlite {
+impl Type<Sqlite> for i64 {
     fn type_info() -> SqliteTypeInfo {
         SqliteTypeInfo::new(ValueKind::Int)
     }

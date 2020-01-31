@@ -3,8 +3,8 @@
 use std::error::Error as StdError;
 use std::fmt::{self, Display};
 
-use crate::database::Database;
-use crate::types::HasSqlType;
+use crate::database::{Database, HasRawValue};
+use crate::types::Type;
 
 pub enum DecodeError {
     /// An unexpected `NULL` was encountered while decoding.
@@ -16,41 +16,42 @@ pub enum DecodeError {
 }
 
 /// Decode a single value from the database.
-pub trait Decode<DB>: Sized
+pub trait Decode<'a, DB>: Sized
 where
-    DB: Database + ?Sized,
+    DB: Database,
 {
-    fn decode(raw: DB::Value) -> Result<Self, DecodeError>;
+    fn decode(raw: <DB as HasRawValue<'a>>::RawValue) -> Result<Self, DecodeError>;
 
-    /// Creates a new value of this type from a `NULL` SQL value.
-    ///
-    /// The default implementation returns [DecodeError::UnexpectedNull].
-    fn decode_null() -> Result<Self, DecodeError> {
-        Err(DecodeError::UnexpectedNull)
-    }
+    // /// Creates a new value of this type from a `NULL` SQL value.
+    // ///
+    // /// The default implementation returns [DecodeError::UnexpectedNull].
+    // fn decode_null() -> Result<Self, DecodeError> {
+    //     Err(DecodeError::UnexpectedNull)
+    // }
 
-    fn decode_nullable(raw: Option<DB::Value>) -> Result<Self, DecodeError> {
-        if let Some(raw) = raw {
-            Self::decode(raw)
-        } else {
-            Self::decode_null()
-        }
-    }
+    // fn decode_nullable<'c>(raw: Option<<DB as DatabaseAssocConnection<'c>>::Value>) -> Result<Self, DecodeError>
+    // {
+    //     if let Some(raw) = raw {
+    //         Self::decode(raw)
+    //     } else {
+    //         Self::decode_null()
+    //     }
+    // }
 }
 
-impl<T, DB> Decode<DB> for Option<T>
-where
-    DB: Database + HasSqlType<T>,
-    T: Decode<DB>,
-{
-    fn decode(buf: DB::Value) -> Result<Self, DecodeError> {
-        T::decode(buf).map(Some)
-    }
+// impl<T, DB> Decode<DB> for Option<T>
+// where
+//     DB: Database + HasSqlType<T>,
+//     T: Decode<DB>,
+// {
+//     fn decode(buf: <DB as DatabaseAssocConnection<'_>>::Value) -> Result<Self, DecodeError> {
+//         T::decode(buf).map(Some)
+//     }
 
-    fn decode_null() -> Result<Self, DecodeError> {
-        Ok(None)
-    }
-}
+//     fn decode_null() -> Result<Self, DecodeError> {
+//         Ok(None)
+//     }
+// }
 
 impl fmt::Debug for DecodeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -1,17 +1,20 @@
-use core::ptr::{null_mut, NonNull};
 use core::i32;
+use core::ptr::{null_mut, NonNull};
 
 use std::convert::TryInto;
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use libsqlite3_sys::{sqlite3_prepare_v3, SQLITE_OK, sqlite3_stmt, SQLITE_PREPARE_NO_VTAB, SQLITE_PREPARE_PERSISTENT};
+use libsqlite3_sys::{
+    sqlite3_prepare_v3, sqlite3_stmt, SQLITE_OK, SQLITE_PREPARE_NO_VTAB, SQLITE_PREPARE_PERSISTENT,
+};
 
 use crate::describe::Describe;
 use crate::executor::Executor;
-use crate::sqlite::statement::{Step, Statement};
-use crate::sqlite::{Sqlite, SqliteArguments, SqliteConnection, SqliteRow};
+use crate::sqlite::statement::{Statement, Step};
+use crate::sqlite::{Sqlite, SqliteArguments, SqliteConnection, SqliteCursor, SqliteRow};
 
 impl SqliteConnection {
     fn prepare(&mut self, query: &str) -> crate::Result<Statement> {
@@ -20,19 +23,26 @@ impl SqliteConnection {
 
         // TODO: Handle the error when there are internal NULs in the query
         let mut sql = query.as_bytes();
-        
+
         let sql_len = query.len();
         if sql_len > (i32::MAX as usize) {
             panic!("query too large");
         }
 
         // TODO: Contribute this back to libsqlite3-sys, these flags should be u32
-        let flags = (SQLITE_PREPARE_PERSISTENT | SQLITE_PREPARE_NO_VTAB) as u32; 
+        let flags = (SQLITE_PREPARE_PERSISTENT | SQLITE_PREPARE_NO_VTAB) as u32;
 
         // <https://www.sqlite.org/c3ref/prepare.html>
         #[allow(unsafe_code)]
         let status = unsafe {
-            sqlite3_prepare_v3(self.handle.as_ptr(), sql.as_ptr() as *const i8, sql.len() as i32, flags, &mut statement, null_mut())
+            sqlite3_prepare_v3(
+                self.handle.as_ptr(),
+                sql.as_ptr() as *const i8,
+                sql.len() as i32,
+                flags,
+                &mut statement,
+                null_mut(),
+            )
         };
 
         if status != SQLITE_OK {
@@ -58,46 +68,40 @@ impl Executor for SqliteConnection {
         query: &'q str,
         args: SqliteArguments,
     ) -> BoxFuture<'e, crate::Result<u64>> {
-        let mut statement = self.prepare(query).unwrap();
+        // let mut statement = self.prepare(query).unwrap();
 
-        statement.step().unwrap();
+        // statement.step().unwrap();
         // statement.reset();
-        
+
         todo!();
-        
     }
 
-    fn fetch<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-        args: SqliteArguments,
-    ) -> BoxStream<'e, crate::Result<SqliteRow>> {
-        Box::pin(async_stream::try_stream! {
-            let mut statement = self.prepare(query)?;
+    fn fetch<'e, 'q: 'e>(&'e mut self, query: &'q str, args: SqliteArguments) -> SqliteCursor<'e> {
+        let statement = self.prepare(query);
 
-            let columns = self.column_names(&mut statement)?;
+        SqliteCursor::<'e>::new(statement)
 
-            while let Step::Row = statement.step()? {
-                let mut values = Vec::with_capacity(columns.len());
+        //         Box::pin(async_stream::try_stream! {
+        //             let mut statement = self.prepare(query)?;
 
-                for i in 0..columns.len() {
-                    values.push(statement.value(i));
-                }
+        //             let columns = self.column_names(&mut statement)?;
 
-                yield SqliteRow { 
-                    values: values.into_boxed_slice(), 
-                    columns: Arc::clone(&columns),
-                }
-            }
-        })
+        //             while let Step::Row = { statement.step()? } {
+
+        //                 let row = SqliteRow {
+        //                     stmt: &mut statement,
+        //                     columns: Arc::clone(&columns),
+        //                 };
+
+        //                 yield row;
+        // .            }
+        //         })
     }
 
     fn describe<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
     ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>> {
-        Box::pin(async move {
-            self.prepare(query)?.describe()
-        })
+        todo!()
     }
 }

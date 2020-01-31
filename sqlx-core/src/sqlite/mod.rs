@@ -1,16 +1,20 @@
 mod arguments;
 mod connection;
+mod cursor;
 mod database;
 mod executor;
 mod row;
-mod value;
-mod types;
 mod statement;
+mod types;
 
 pub use arguments::SqliteArguments;
-pub use connection::SqliteConnection;
-pub use database::Sqlite;
-pub use row::SqliteRow;
-pub use types::SqliteTypeInfo;
 
-pub(crate) use statement::Statement;
+pub use connection::SqliteConnection;
+
+pub use database::Sqlite;
+
+pub use row::SqliteRow;
+
+pub use cursor::SqliteCursor;
+
+pub use types::SqliteTypeInfo;

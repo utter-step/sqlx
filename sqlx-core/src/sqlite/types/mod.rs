@@ -2,10 +2,10 @@ use std::fmt::{self, Display};
 
 use crate::types::TypeInfo;
 
-mod bytes;
-mod float;
+// mod bytes;
+// mod float;
 mod int;
-mod str;
+// mod str;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ValueKind {
@@ -26,16 +26,18 @@ pub struct SqliteTypeInfo {
 }
 
 impl SqliteTypeInfo {
-    pub(crate) const NULL: SqliteTypeInfo = SqliteTypeInfo { kind: ValueKind::Null };
+    pub(crate) const NULL: SqliteTypeInfo = SqliteTypeInfo {
+        kind: ValueKind::Null,
+    };
 
     pub(crate) fn new(kind: ValueKind) -> Self {
         SqliteTypeInfo { kind }
     }
 
     /// Returns `true` if the type could not be resolved.
-    /// 
+    ///
     ///  * Bind parameters will have a `NULL` type.
-    /// 
+    ///
     ///  * Result columns that are expressions will have a `NULL` type.
     ///
     pub fn is_null(&self) -> bool {
