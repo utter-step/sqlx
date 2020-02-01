@@ -63,11 +63,11 @@ where
     pub fn try_acquire(&self) -> Option<PoolConnection<C>> {
         self.0.try_acquire().map(|conn| conn.attach(&self.0))
     }
-
-    /// Retrieves a new connection and immediately begins a new transaction.
-    pub async fn begin(&self) -> crate::Result<Transaction<PoolConnection<C>>> {
-        Ok(Transaction::new(0, self.acquire().await?).await?)
-    }
+    //
+    //    /// Retrieves a new connection and immediately begins a new transaction.
+    //    pub async fn begin(&self) -> crate::Result<Transaction<PoolConnection<C>>> {
+    //        Ok(Transaction::new(0, self.acquire().await?).await?)
+    //    }
 
     /// Ends the use of a connection pool. Prevents any new connections
     /// and will close all active connections when they are returned to the pool.
