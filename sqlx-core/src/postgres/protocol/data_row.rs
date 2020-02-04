@@ -1,32 +1,39 @@
 use crate::io::{Buf, ByteStr};
 use crate::postgres::protocol::Decode;
 use byteorder::NetworkEndian;
+use core::marker::PhantomData;
 use std::fmt::{self, Debug};
 use std::ops::Range;
 
-pub struct DataRow {
-    buffer: Box<[u8]>,
+pub struct DataRow<'c> {
+    phantom: PhantomData<&'c mut ()>,
+
+    //    buffer: Vec<[u8]>,
     values: Box<[Option<Range<u32>>]>,
+
+    buffer: &'c Vec<u8>,
 }
 
-impl DataRow {
+impl<'c> DataRow<'c> {
     pub fn len(&self) -> usize {
         self.values.len()
     }
 
-    pub fn get(&self, index: usize) -> Option<&[u8]> {
+    pub fn get(&'c self, index: usize) -> Option<&'c [u8]> {
         let range = self.values[index].as_ref()?;
 
         Some(&self.buffer[(range.start as usize)..(range.end as usize)])
     }
 }
 
-impl Decode for DataRow {
-    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
+impl<'c> DataRow<'c> {
+    pub(crate) fn decode(mut buf: &[u8], work: &'c mut Vec<u8>) -> crate::Result<Self> {
         let len = buf.get_u16::<NetworkEndian>()? as usize;
-        let buffer: Box<[u8]> = buf.into();
+        // let buffer: Box<[u8]> = buf.into();
+        work.clear();
+        work.extend_from_slice(buf);
         let mut values = Vec::with_capacity(len);
-        let mut index = 4;
+        let mut index = 6;
 
         while values.len() < len {
             // The length of the column value, in bytes (this count does not include itself).
@@ -47,25 +54,10 @@ impl Decode for DataRow {
         }
 
         Ok(Self {
+            phantom: PhantomData,
             values: values.into_boxed_slice(),
-            buffer,
+            buffer: work,
         })
-    }
-}
-
-impl Debug for DataRow {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "DataRow(")?;
-
-        let len = self.values.len();
-
-        f.debug_list()
-            .entries((0..len).map(|i| self.get(i).map(ByteStr)))
-            .finish()?;
-
-        write!(f, ")")?;
-
-        Ok(())
     }
 }
 
@@ -84,10 +76,5 @@ mod tests {
         assert_eq!(m.get(0), Some(&b"1"[..]));
         assert_eq!(m.get(1), Some(&b"2"[..]));
         assert_eq!(m.get(2), Some(&b"3"[..]));
-
-        assert_eq!(
-            format!("{:?}", m),
-            "DataRow([Some(b\"1\"), Some(b\"2\"), Some(b\"3\")])"
-        );
     }
 }

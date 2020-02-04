@@ -16,7 +16,7 @@ use crate::postgres::protocol::{
 };
 use crate::postgres::PgError;
 use crate::url::Url;
-use crate::Result;
+use crate::{Postgres, Result};
 
 /// An asynchronous connection to a [Postgres][super::Postgres] database.
 ///
@@ -95,6 +95,9 @@ pub struct PgConnection {
 
     // Is there a query in progress; are we ready to continue
     pub(super) ready: bool,
+
+    // Work buffer for decoding rows
+    row_buffer: Vec<u8>,
 }
 
 impl PgConnection {
@@ -243,6 +246,11 @@ impl PgConnection {
                     self.secret_key = body.secret_key;
                 }
 
+                Message::ParameterStatus(_status) => {
+                    // Not sure what to do with these
+                    continue;
+                }
+
                 Message::ReadyForQuery(_) => {
                     // Connection fully established and ready to receive queries.
                     break;
@@ -268,68 +276,122 @@ impl PgConnection {
     }
 
     // Wait and return the next message to be received from Postgres.
-    pub(super) async fn receive(&mut self) -> Result<Option<Message>> {
-        loop {
-            // Read the message header (id + len)
-            let mut header = ret_if_none!(self.stream.peek(5).await?);
+    pub(super) async fn receive<'c>(&'c mut self) -> Result<Option<Message<'c>>> {
+        //        loop {
+        // Read the message header (id + len)
+        let mut header = self.stream.peek(5).await?.unwrap();
+        let id = header.get_u8()?;
+        let len = (header.get_u32::<NetworkEndian>()? - 4) as usize;
 
-            let id = header.get_u8()?;
-            let len = (header.get_u32::<NetworkEndian>()? - 4) as usize;
+        self.stream.consume(5);
+        let body = self.stream.peek(len).await?.unwrap();
 
-            // Read the message body
-            self.stream.consume(5);
-            let body = ret_if_none!(self.stream.peek(len).await?);
+        let message = match id {
+            b'N' | b'E' => Message::Response(Box::new(protocol::Response::decode(body)?)),
+            b'D' => Message::DataRow(protocol::DataRow::decode(body, &mut self.row_buffer)?),
+            b'S' => Message::ParameterStatus(Box::new(protocol::ParameterStatus::decode(body)?)),
+            b'Z' => Message::ReadyForQuery(protocol::ReadyForQuery::decode(body)?),
+            b'R' => Message::Authentication(Box::new(protocol::Authentication::decode(body)?)),
+            b'K' => Message::BackendKeyData(protocol::BackendKeyData::decode(body)?),
+            b'C' => Message::CommandComplete(protocol::CommandComplete::decode(body)?),
+            b'A' => Message::NotificationResponse(Box::new(
+                protocol::NotificationResponse::decode(body)?,
+            )),
+            b'1' => Message::ParseComplete,
+            b'2' => Message::BindComplete,
+            b'3' => Message::CloseComplete,
+            b'n' => Message::NoData,
+            b's' => Message::PortalSuspended,
+            b't' => Message::ParameterDescription(Box::new(
+                protocol::ParameterDescription::decode(body)?,
+            )),
+            b'T' => Message::RowDescription(Box::new(protocol::RowDescription::decode(body)?)),
 
-            let message = match id {
-                b'N' | b'E' => Message::Response(Box::new(protocol::Response::decode(body)?)),
-                b'D' => Message::DataRow(protocol::DataRow::decode(body)?),
-                b'S' => {
-                    Message::ParameterStatus(Box::new(protocol::ParameterStatus::decode(body)?))
-                }
-                b'Z' => Message::ReadyForQuery(protocol::ReadyForQuery::decode(body)?),
-                b'R' => Message::Authentication(Box::new(protocol::Authentication::decode(body)?)),
-                b'K' => Message::BackendKeyData(protocol::BackendKeyData::decode(body)?),
-                b'C' => Message::CommandComplete(protocol::CommandComplete::decode(body)?),
-                b'A' => Message::NotificationResponse(Box::new(
-                    protocol::NotificationResponse::decode(body)?,
-                )),
-                b'1' => Message::ParseComplete,
-                b'2' => Message::BindComplete,
-                b'3' => Message::CloseComplete,
-                b'n' => Message::NoData,
-                b's' => Message::PortalSuspended,
-                b't' => Message::ParameterDescription(Box::new(
-                    protocol::ParameterDescription::decode(body)?,
-                )),
-                b'T' => Message::RowDescription(Box::new(protocol::RowDescription::decode(body)?)),
+            id => {
+                return Err(protocol_err!("received unknown message id: {:?}", id).into());
+            }
+        };
 
-                id => {
-                    return Err(protocol_err!("received unknown message id: {:?}", id).into());
-                }
-            };
+        self.stream.consume(len);
 
-            self.stream.consume(len);
-
-            match message {
-                Message::ParameterStatus(_body) => {
-                    // TODO: not sure what to do with these yet
-                }
-
-                Message::Response(body) => {
-                    if body.severity.is_error() {
-                        // This is an error, stop the world and bubble as an error
-                        return Err(PgError(body).into());
-                    } else {
-                        // This is a _warning_
-                        // TODO: Log the warning
-                    }
-                }
-
-                message => {
-                    return Ok(Some(message));
+        match message {
+            //            Message::ParameterStatus(_body) => {
+            //                // TODO: not sure what to do with these yet
+            //
+            //                todo!()
+            //            }
+            Message::Response(body) => {
+                if body.severity.is_error() {
+                    // This is an error, stop the world and bubble as an error
+                    return Err(PgError(body).into());
+                } else {
+                    // This is a _warning_
+                    // TODO: Log the warningtodo!()
+                    todo!()
                 }
             }
+
+            message => {
+                return Ok(Some(message));
+            }
         }
+
+        //            let id = header.get_u8()?;
+        //            let len = (header.get_u32::<NetworkEndian>()? - 4) as usize;
+        //
+        //            // Read the message body
+        //            self.stream.consume(5);
+        //            let body = ret_if_none!(self.stream.peek(len).await?);
+        //
+        //            let message = match id {
+        //                b'N' | b'E' => Message::Response(Box::new(protocol::Response::decode(body)?)),
+        //                b'D' => Message::DataRow(protocol::DataRow::decode(body)?),
+        //                b'S' => {
+        //                    Message::ParameterStatus(Box::new(protocol::ParameterStatus::decode(body)?))
+        //                }
+        //                b'Z' => Message::ReadyForQuery(protocol::ReadyForQuery::decode(body)?),
+        //                b'R' => Message::Authentication(Box::new(protocol::Authentication::decode(body)?)),
+        //                b'K' => Message::BackendKeyData(protocol::BackendKeyData::decode(body)?),
+        //                b'C' => Message::CommandComplete(protocol::CommandComplete::decode(body)?),
+        //                b'A' => Message::NotificationResponse(Box::new(
+        //                    protocol::NotificationResponse::decode(body)?,
+        //                )),
+        //                b'1' => Message::ParseComplete,
+        //                b'2' => Message::BindComplete,
+        //                b'3' => Message::CloseComplete,
+        //                b'n' => Message::NoData,
+        //                b's' => Message::PortalSuspended,
+        //                b't' => Message::ParameterDescription(Box::new(
+        //                    protocol::ParameterDescription::decode(body)?,
+        //                )),
+        //                b'T' => Message::RowDescription(Box::new(protocol::RowDescription::decode(body)?)),
+        //
+        //                id => {
+        //                    return Err(protocol_err!("received unknown message id: {:?}", id).into());
+        //                }
+        //            };
+        //
+        //
+        //            match message {
+        //                Message::ParameterStatus(_body) => {
+        //                    // TODO: not sure what to do with these yet
+        //                }
+        //
+        //                Message::Response(body) => {
+        //                    if body.severity.is_error() {
+        //                        // This is an error, stop the world and bubble as an error
+        //                        return Err(PgError(body).into());
+        //                    } else {
+        //                        // This is a _warning_
+        //                        // TODO: Log the warning
+        //                    }
+        //                }
+        //
+        //                message => {
+        //                    return Ok(Some(message));
+        //                }
+        //            }
+        //        }
     }
 }
 
@@ -346,6 +408,7 @@ impl PgConnection {
             next_statement_id: 1,
             statement_cache: StatementCache::new(),
             ready: true,
+            row_buffer: Vec::with_capacity(4096),
         };
 
         let ssl_mode = url.get_param("sslmode").unwrap_or("prefer".into());
@@ -421,6 +484,8 @@ impl Connect for PgConnection {
 }
 
 impl Connection for PgConnection {
+    type Database = Postgres;
+
     fn close(self) -> BoxFuture<'static, Result<()>> {
         Box::pin(self.terminate())
     }

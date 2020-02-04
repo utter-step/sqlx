@@ -30,25 +30,25 @@ features = [ "tls", "postgres", "mysql", "uuid", "chrono" ]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = [ "macros", "runtime-async-std" ]
-macros = [ "sqlx-macros" ]
+default = [ "runtime-async-std" ]
+#macros = [ "sqlx-macros" ]
 tls = [ "sqlx-core/tls" ]
 
 # runtime
-runtime-async-std = [ "sqlx-core/runtime-async-std", "sqlx-macros/runtime-async-std" ]
-runtime-tokio = [ "sqlx-core/runtime-tokio", "sqlx-macros/runtime-tokio" ]
+runtime-async-std = [ "sqlx-core/runtime-async-std" ]
+runtime-tokio = [ "sqlx-core/runtime-tokio" ]
 
 # database
-postgres = [ "sqlx-core/postgres", "sqlx-macros/postgres" ]
-mysql = [ "sqlx-core/mysql", "sqlx-macros/mysql" ]
+postgres = [ "sqlx-core/postgres" ]
+mysql = [ "sqlx-core/mysql" ]
 
 # types
-chrono = [ "sqlx-core/chrono", "sqlx-macros/chrono" ]
-uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
+#chrono = [ "sqlx-core/chrono", "sqlx-macros/chrono" ]
+#uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
 
 [dependencies]
 sqlx-core = { version = "0.2.5", path = "sqlx-core", default-features = false }
-sqlx-macros = { version = "0.2.4", path = "sqlx-macros", default-features = false, optional = true }
+# sqlx-macros = { version = "0.2.4", path = "sqlx-macros", default-features = false, optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.26"

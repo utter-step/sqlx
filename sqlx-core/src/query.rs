@@ -1,12 +1,16 @@
+use std::future::Future;
+use std::marker::PhantomData;
+
+use futures_util::future::ready;
+use futures_util::TryFutureExt;
+
 use crate::arguments::Arguments;
 use crate::arguments::IntoArguments;
-use crate::database::Database;
+use crate::cursor::Cursor;
+use crate::database::{Database, HasCursor, HasRow};
 use crate::encode::Encode;
-use crate::executor::Executor;
-use crate::types::HasSqlType;
-use futures_core::stream::BoxStream;
-use futures_util::TryStreamExt;
-use std::marker::PhantomData;
+use crate::executor::{Execute, Executor};
+use crate::types::Type;
 
 /// Dynamic SQL query with bind parameters. Returned by [query].
 ///
@@ -21,69 +25,60 @@ where
     database: PhantomData<DB>,
 }
 
+impl<'q, DB, P> Execute<'q, DB> for Query<'q, DB, P>
+where
+    DB: Database,
+    P: IntoArguments<DB> + Send,
+{
+    fn into_parts(self) -> (&'q str, Option<<DB as Database>::Arguments>) {
+        (self.query, Some(self.arguments.into_arguments()))
+    }
+}
+
 impl<'q, DB, P> Query<'q, DB, P>
 where
     DB: Database,
     P: IntoArguments<DB> + Send,
 {
-    /// Execute the query for its side-effects.
-    ///
-    /// Returns the number of rows affected, or 0 if not applicable.
-    pub async fn execute<E>(self, executor: &mut E) -> crate::Result<u64>
+    pub fn execute<'e, E>(self, executor: E) -> impl Future<Output = crate::Result<u64>> + 'e
     where
-        E: Executor<Database = DB>,
-    {
-        executor
-            .execute(self.query, self.arguments.into_arguments())
-            .await
-    }
-
-    /// Execute the query, returning the rows as a futures `Stream`.
-    ///
-    /// Use [fetch_all] if you want a `Vec` instead.
-    pub fn fetch<'e, E>(self, executor: &'e mut E) -> BoxStream<'e, crate::Result<DB::Row>>
-    where
-        E: Executor<Database = DB>,
+        E: Executor<'e, Database = DB>,
         'q: 'e,
     {
-        executor.fetch(self.query, self.arguments.into_arguments())
+        executor.execute(self)
     }
 
-    /// Execute the query and get all rows from the result as a `Vec`.
-    pub async fn fetch_all<E>(self, executor: &mut E) -> crate::Result<Vec<DB::Row>>
+    pub fn fetch<'e, E>(self, executor: E) -> <DB as HasCursor<'e>>::Cursor
     where
-        E: Executor<Database = DB>,
+        E: Executor<'e, Database = DB>,
+        'q: 'e,
     {
-        executor
-            .fetch(self.query, self.arguments.into_arguments())
-            .try_collect()
-            .await
+        executor.execute(self)
     }
 
-    /// Execute a query which should return either 0 or 1 rows.
-    ///
-    /// Returns [crate::Error::FoundMoreThanOne] if more than 1 row is returned.
-    /// Use `.fetch().try_next()` if you just want one row.
-    pub async fn fetch_optional<E>(self, executor: &mut E) -> crate::Result<Option<DB::Row>>
+    pub fn fetch_optional<'e, E>(
+        self,
+        executor: E,
+    ) -> impl Future<Output = crate::Result<Option<<DB as HasRow<'e>>::Row>>>
     where
-        E: Executor<Database = DB>,
+        E: Executor<'e, Database = DB>,
+        'q: 'e,
     {
-        executor
-            .fetch_optional(self.query, self.arguments.into_arguments())
-            .await
+        executor.execute(self).first()
     }
 
-    /// Execute a query which should return exactly 1 row.
-    ///
-    /// * Returns [crate::Error::NotFound] if 0 rows are returned.
-    /// * Returns [crate::Error::FoundMoreThanOne] if more than one row is returned.
-    pub async fn fetch_one<E>(self, executor: &mut E) -> crate::Result<DB::Row>
+    pub fn fetch_one<'e, E>(
+        self,
+        executor: E,
+    ) -> impl Future<Output = crate::Result<<DB as HasRow<'e>>::Row>>
     where
-        E: Executor<Database = DB>,
+        E: Executor<'e, Database = DB>,
+        'q: 'e,
     {
-        executor
-            .fetch_one(self.query, self.arguments.into_arguments())
-            .await
+        self.fetch_optional(executor).and_then(|row| match row {
+            Some(row) => ready(Ok(row)),
+            None => ready(Err(crate::Error::NotFound)),
+        })
     }
 }
 
@@ -100,7 +95,7 @@ where
     /// passed the correct number of parameters.
     pub fn bind<T>(mut self, value: T) -> Self
     where
-        DB: HasSqlType<T>,
+        T: Type<DB>,
         T: Encode<DB>,
     {
         self.arguments.add(value);

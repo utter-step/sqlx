@@ -1,21 +1,28 @@
-use crate::executor::Executor;
-use crate::url::Url;
 use futures_core::future::BoxFuture;
-use futures_util::TryFutureExt;
 use std::convert::TryInto;
+
+use crate::database::HasCursor;
+use crate::executor::Execute;
+use crate::url::Url;
+use crate::{Database, Executor};
 
 /// Represents a single database connection rather than a pool of database connections.
 ///
 /// Prefer running queries from [Pool] unless there is a specific need for a single, continuous
 /// connection.
-pub trait Connection: Executor + Send + 'static {
+pub trait Connection
+where
+    Self: Send + 'static,
+{
+    type Database: Database;
+
     /// Close this database connection.
     fn close(self) -> BoxFuture<'static, crate::Result<()>>;
 
-    /// Verifies a connection to the database is still alive.
-    fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
-        Box::pin(self.execute("SELECT 1", Default::default()).map_ok(|_| ()))
-    }
+    //    /// Verifies a connection to the database is still alive.
+    //    fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
+    //        Box::pin(self.execute("SELECT 1", Default::default()).map_ok(|_| ()))
+    //    }
 }
 
 /// Represents a type that can directly establish a new connection.

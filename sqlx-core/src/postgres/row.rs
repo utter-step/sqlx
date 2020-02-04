@@ -1,58 +1,64 @@
+use core::marker::PhantomData;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::decode::Decode;
 use crate::postgres::protocol::DataRow;
 use crate::postgres::Postgres;
-use crate::row::{Row, RowIndex};
-use crate::types::HasSqlType;
+use crate::row::Row;
+use crate::types::Type;
 
-pub struct PgRow {
-    pub(super) data: DataRow,
+pub struct PgRow<'c> {
+    pub(super) data: DataRow<'c>,
     pub(super) columns: Arc<HashMap<Box<str>, usize>>,
 }
 
-impl Row for PgRow {
+impl<'c> Row<'c> for PgRow<'c> {
     type Database = Postgres;
 
     fn len(&self) -> usize {
-        self.data.len()
+        //        self.data.len()
+
+        todo!()
     }
 
-    fn get<T, I>(&self, index: I) -> T
+    fn try_get<'de: 'c, T>(&'de self, index: usize) -> crate::Result<T>
     where
-        Self::Database: HasSqlType<T>,
-        I: RowIndex<Self>,
-        T: Decode<Self::Database>,
+        T: Type<Self::Database>,
+        T: Decode<'de, Self::Database>,
     {
-        index.try_get(self).unwrap()
+        // T::decode(self.data.get(index))
+        todo!()
     }
 }
 
-impl RowIndex<PgRow> for usize {
-    fn try_get<T>(&self, row: &PgRow) -> crate::Result<T>
-    where
-        <PgRow as Row>::Database: HasSqlType<T>,
-        T: Decode<<PgRow as Row>::Database>,
-    {
-        Ok(Decode::decode_nullable(row.data.get(*self))?)
-    }
-}
+// TODO: Restore [RowIndex]
 
-impl RowIndex<PgRow> for &'_ str {
-    fn try_get<T>(&self, row: &PgRow) -> crate::Result<T>
-    where
-        <PgRow as Row>::Database: HasSqlType<T>,
-        T: Decode<<PgRow as Row>::Database>,
-    {
-        let index = row
-            .columns
-            .get(*self)
-            .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))?;
-        let value = Decode::decode_nullable(row.data.get(*index))?;
-
-        Ok(value)
-    }
-}
-
-impl_from_row_for_row!(PgRow);
+//impl RowIndex<PgRow> for usize {
+//    fn try_get<T>(&self, row: &PgRow) -> crate::Result<T>
+//    where
+//        <PgRow as Row>::Database: HasSqlType<T>,
+//        T: Decode<<PgRow as Row>::Database>,
+//    {
+//        Ok(Decode::decode_nullable(row.data.get(*self))?)
+//    }
+//}
+//
+//impl RowIndex<PgRow> for &'_ str {
+//    fn try_get<T>(&self, row: &PgRow) -> crate::Result<T>
+//    where
+//        <PgRow as Row>::Database: HasSqlType<T>,
+//        T: Decode<<PgRow as Row>::Database>,
+//    {
+//        let index = row
+//            .columns
+//            .get(*self)
+//            .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))?;
+//        let value = Decode::decode_nullable(row.data.get(*index))?;
+//
+//        Ok(value)
+//    }
+//}
+//
+//impl_from_row_for_row!(PgRow);

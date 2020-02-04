@@ -59,6 +59,8 @@ impl<C> Connection for PoolConnection<C>
 where
     C: Connection + Connect<Connection = C>,
 {
+    type Database = C::Database;
+
     /// Detach the connection from the pool and close it nicely.
     fn close(mut self) -> BoxFuture<'static, crate::Result<()>> {
         Box::pin(async move {
@@ -166,7 +168,9 @@ impl<'s, C> Floating<'s, Idle<C>> {
     where
         C: Connection,
     {
-        self.live.raw.ping().await
+        todo!();
+        //        self.live.raw.ping().await
+        Ok(())
     }
 
     pub fn into_live(self) -> Floating<'s, Live<C>> {

@@ -1,6 +1,5 @@
 //! Error and Result types.
 
-use crate::decode::DecodeError;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug, Display};
 use std::io;
@@ -10,6 +9,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// A generic error that represents all the ways a method can fail inside of SQLx.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// Error communicating with the database.
     Io(io::Error),
@@ -47,11 +47,8 @@ pub enum Error {
     /// An error occurred during a TLS upgrade.
     TlsUpgrade(Box<dyn StdError + Send + Sync>),
 
-    Decode(DecodeError),
-
-    // TODO: Remove and replace with `#[non_exhaustive]` when possible
-    #[doc(hidden)]
-    __Nonexhaustive,
+    // --- Decode ---
+    UnexpectedNull,
 }
 
 impl StdError for Error {
@@ -62,8 +59,6 @@ impl StdError for Error {
             Error::UrlParse(error) => Some(error),
 
             Error::PoolTimedOut(Some(error)) => Some(&**error),
-
-            Error::Decode(DecodeError::Other(error)) => Some(&**error),
 
             Error::TlsUpgrade(error) => Some(&**error),
 
@@ -79,9 +74,11 @@ impl Display for Error {
 
             Error::UrlParse(error) => write!(f, "{}", error),
 
-            Error::Decode(error) => write!(f, "{}", error),
-
             Error::Database(error) => Display::fmt(error, f),
+
+            Error::UnexpectedNull => f.write_str(
+                "unexpected NULL value; hint: query as Option<_> to support nullable values",
+            ),
 
             Error::NotFound => f.write_str("found no rows when we expected at least one"),
 
@@ -106,8 +103,6 @@ impl Display for Error {
             Error::PoolClosed => f.write_str("attempted to acquire a connection on a closed pool"),
 
             Error::TlsUpgrade(ref err) => write!(f, "error during TLS upgrade: {}", err),
-
-            Error::__Nonexhaustive => unreachable!(),
         }
     }
 }
@@ -123,13 +118,6 @@ impl From<io::ErrorKind> for Error {
     #[inline]
     fn from(err: io::ErrorKind) -> Self {
         Error::Io(err.into())
-    }
-}
-
-impl From<DecodeError> for Error {
-    #[inline]
-    fn from(err: DecodeError) -> Self {
-        Error::Decode(err)
     }
 }
 
