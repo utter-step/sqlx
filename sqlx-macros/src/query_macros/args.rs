@@ -22,7 +22,8 @@ pub fn quote_args<DB: DatabaseExt>(
             .param_types
             .iter()
             .zip(&*input.arg_exprs)
-            .map(|(type_, expr)| {
+            .enumerate()
+            .map(|(i, (type_, expr))| {
                 get_type_override(expr)
                     .or_else(|| {
                         Some(
@@ -31,7 +32,19 @@ pub fn quote_args<DB: DatabaseExt>(
                                 .unwrap(),
                         )
                     })
-                    .ok_or_else(|| format!("unknown type param ID: {}", type_).into())
+                    .ok_or_else(|| {
+                        if let Some(feature_gate) = <DB as DatabaseExt>::get_feature_gate(&type_) {
+                            format!(
+                                "support for type {} of param #{} requires optional feature `{}`",
+                                type_,
+                                i + 1,
+                                feature_gate
+                            )
+                            .into()
+                        } else {
+                            format!("unknown param type {} for param #{}", type_, i + 1).into()
+                        }
+                    })
             })
             .collect::<crate::Result<Vec<_>>>()?;
 
