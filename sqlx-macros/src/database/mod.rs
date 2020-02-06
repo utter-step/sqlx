@@ -19,7 +19,7 @@ pub trait DatabaseExt: Database {
     fn param_type_for_id(id: &Self::TypeInfo) -> Option<&'static str>;
 
     fn return_type_for_id(id: &Self::TypeInfo) -> Option<&'static str>;
-    
+
     fn get_feature_gate(info: &Self::TypeInfo) -> Option<&'static str>;
 }
 
