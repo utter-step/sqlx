@@ -25,7 +25,12 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
             let ident = parse_ident(name)?;
 
             let type_ = <DB as DatabaseExt>::return_type_for_id(&column.type_info)
-                .ok_or_else(|| format!("unknown type: {}", &column.type_info))?
+                .ok_or_else(|| {
+                    format!(
+                        "unknown output type {} for column at position {} (name: {:?})",
+                        column.type_info, i, column.name
+                    )
+                })?
                 .parse::<TokenStream>()
                 .unwrap();
 

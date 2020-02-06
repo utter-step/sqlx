@@ -62,5 +62,5 @@ where
 pub enum Nullability {
     NonNull,
     Nullable,
-    Unknown
+    Unknown,
 }

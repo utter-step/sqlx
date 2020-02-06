@@ -163,15 +163,20 @@ async fn test_describe() -> anyhow::Result<()> {
 
     let mut conn = connect().await?;
 
-    let _ = conn.send(r#"
+    let _ = conn
+        .send(
+            r#"
         CREATE TEMP TABLE describe_test (
             id SERIAL primary key,
             name text not null,
             hash bytea
         )
-    "#).await?;
+    "#,
+        )
+        .await?;
 
-    let describe = conn.describe("select nt.*, false from describe_test nt")
+    let describe = conn
+        .describe("select nt.*, false from describe_test nt")
         .await?;
 
     assert_eq!(describe.result_columns[0].nullability, NonNull);

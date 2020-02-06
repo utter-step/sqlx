@@ -15,8 +15,6 @@ impl SslRequest {
 
 #[test]
 fn test_ssl_request() {
-    use crate::io::Buf;
-
     let mut buf = Vec::new();
     SslRequest::encode(&mut buf);
 

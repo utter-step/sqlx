@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::fmt::{self, Debug, Display};
 use std::ops::Deref;
 use std::sync::Arc;
@@ -26,7 +25,10 @@ pub struct PgTypeInfo {
 
 impl PgTypeInfo {
     pub(crate) fn new(id: TypeId, name: impl Into<SharedStr>) -> Self {
-        Self { id, name: Some(name.into()) }
+        Self {
+            id,
+            name: Some(name.into()),
+        }
     }
 
     /// Create a `PgTypeInfo` from a type's object identifier.
@@ -34,7 +36,10 @@ impl PgTypeInfo {
     /// The object identifier of a type can be queried with
     /// `SELECT oid FROM pg_type WHERE typname = <name>;`
     pub fn with_oid(oid: u32) -> Self {
-        Self { id: TypeId(oid), name: None }
+        Self {
+            id: TypeId(oid),
+            name: None,
+        }
     }
 
     #[doc(hidden)]

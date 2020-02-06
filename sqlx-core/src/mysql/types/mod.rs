@@ -49,12 +49,17 @@ impl MySqlTypeInfo {
             char_set: def.char_set,
         }
     }
+
+    #[doc(hidden)]
+    pub fn type_name(&self) -> &'static str {
+        self.id.type_name()
+    }
 }
 
 impl Display for MySqlTypeInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // TODO: Should we attempt to render the type *name* here?
-        write!(f, "{}", self.id.0)
+        write!(f, "ID {:#x}", self.id.0)
     }
 }
 

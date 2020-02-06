@@ -5,15 +5,15 @@ use std::sync::Arc;
 
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::{stream, FutureExt, StreamExt, TryStreamExt};
+use futures_util::{stream, StreamExt, TryStreamExt};
 
 use crate::arguments::Arguments;
-use crate::describe::{Column, Describe, Nullability};
-use crate::encode::IsNull::No;
-use crate::postgres::{PgArguments, PgRow, PgTypeInfo, Postgres};
+use crate::describe::{Column, Describe};
+
 use crate::postgres::protocol::{self, Encode, Field, Message, StatementId, TypeFormat, TypeId};
-use crate::row::Row;
 use crate::postgres::types::SharedStr;
+use crate::postgres::{PgArguments, PgRow, PgTypeInfo, Postgres};
+use crate::row::Row;
 
 #[derive(Debug)]
 enum Step {
@@ -37,7 +37,7 @@ impl super::PgConnection {
                 query,
                 param_types: &*args.types,
             }
-                .encode(self.stream.buffer_mut());
+            .encode(self.stream.buffer_mut());
 
             self.statement_cache.put(query.to_owned(), id);
 
@@ -59,7 +59,7 @@ impl super::PgConnection {
             values: &*args.values,
             result_formats: &[TypeFormat::Binary],
         }
-            .encode(self.stream.buffer_mut());
+        .encode(self.stream.buffer_mut());
     }
 
     fn write_execute(&mut self, portal: &str, limit: i32) {
@@ -291,13 +291,14 @@ impl super::PgConnection {
         let result_fields = result.map_or_else(Default::default, |r| r.fields);
 
         // TODO: cache this result
-        let type_names = self.get_type_names(
-            params
-                .ids
-                .iter()
-                .cloned()
-                .chain(result_fields.iter().map(|field| field.type_id))
-        )
+        let type_names = self
+            .get_type_names(
+                params
+                    .ids
+                    .iter()
+                    .cloned()
+                    .chain(result_fields.iter().map(|field| field.type_id)),
+            )
             .await?;
 
         Ok(Describe {
@@ -307,12 +308,17 @@ impl super::PgConnection {
                 .map(|id| PgTypeInfo::new(*id, &type_names[&id.0]))
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
-            result_columns: self.map_result_columns(result_fields, type_names).await?
+            result_columns: self
+                .map_result_columns(result_fields, type_names)
+                .await?
                 .into_boxed_slice(),
         })
     }
 
-    async fn get_type_names(&mut self, ids: impl IntoIterator<Item = TypeId>) -> crate::Result<HashMap<u32, SharedStr>> {
+    async fn get_type_names(
+        &mut self,
+        ids: impl IntoIterator<Item = TypeId>,
+    ) -> crate::Result<HashMap<u32, SharedStr>> {
         let type_ids: HashSet<u32> = ids.into_iter().map(|id| id.0).collect::<HashSet<u32>>();
 
         let mut query = "select types.type_id, pg_type.typname from (VALUES ".to_string();
@@ -320,7 +326,7 @@ impl super::PgConnection {
         let mut pushed = false;
 
         // TODO: dedup this with the one below, ideally as an API we can export
-        for (i, (&type_id, bind)) in type_ids.iter().zip((1 .. ).step_by(2)).enumerate() {
+        for (i, (&type_id, bind)) in type_ids.iter().zip((1..).step_by(2)).enumerate() {
             if pushed {
                 query += ", ";
             }
@@ -334,8 +340,8 @@ impl super::PgConnection {
         }
 
         query += ") as types(idx, type_id) \
-        inner join pg_catalog.pg_type on pg_type.oid = type_id \
-        order by types.idx";
+                  inner join pg_catalog.pg_type on pg_type.oid = type_id \
+                  order by types.idx";
 
         self.fetch(&query, args)
             .map_ok(|row: PgRow| -> (u32, SharedStr) {
@@ -345,16 +351,22 @@ impl super::PgConnection {
             .await
     }
 
-    async fn map_result_columns(&mut self, fields: Box<[Field]>, type_names: HashMap<u32, SharedStr>) -> crate::Result<Vec<Column<Postgres>>> {
+    async fn map_result_columns(
+        &mut self,
+        fields: Box<[Field]>,
+        type_names: HashMap<u32, SharedStr>,
+    ) -> crate::Result<Vec<Column<Postgres>>> {
         use crate::describe::Nullability::*;
 
-        if fields.is_empty() { return Ok(vec![]); }
+        if fields.is_empty() {
+            return Ok(vec![]);
+        }
 
         let mut query = "select col.idx, pg_attribute.attnotnull from (VALUES ".to_string();
         let mut pushed = false;
         let mut args = PgArguments::default();
 
-        for (i, (field, bind)) in fields.iter().zip((1 ..).step_by(3)).enumerate() {
+        for (i, (field, bind)) in fields.iter().zip((1..).step_by(3)).enumerate() {
             if pushed {
                 query += ", ";
             }
@@ -381,14 +393,17 @@ impl super::PgConnection {
                 let nonnull = row.get::<Option<bool>, _>(1);
 
                 if idx != fidx as i32 {
-                    return Err(protocol_err!("missing field from query, field: {:?}", field).into());
+                    return Err(
+                        protocol_err!("missing field from query, field: {:?}", field).into(),
+                    );
                 }
 
                 Ok(Column {
                     name: field.name,
                     table_id: field.table_id,
                     type_info: PgTypeInfo::new(field.type_id, &type_names[&field.type_id.0]),
-                    nullability: nonnull.map(|nonnull| if nonnull { NonNull } else { Nullable })
+                    nullability: nonnull
+                        .map(|nonnull| if nonnull { NonNull } else { Nullable })
                         .unwrap_or(Unknown),
                 })
             })
