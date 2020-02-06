@@ -321,6 +321,10 @@ impl super::PgConnection {
     ) -> crate::Result<HashMap<u32, SharedStr>> {
         let type_ids: HashSet<u32> = ids.into_iter().map(|id| id.0).collect::<HashSet<u32>>();
 
+        if type_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
         let mut query = "select types.type_id, pg_type.typname from (VALUES ".to_string();
         let mut args = PgArguments::default();
         let mut pushed = false;
