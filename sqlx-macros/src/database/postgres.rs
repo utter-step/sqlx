@@ -26,5 +26,6 @@ impl_database_ext! {
         #[cfg(feature = "chrono")]
         sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
     },
-    ParamChecking::Strong
+    ParamChecking::Strong,
+    feature-types: info => info.type_feature_gate(),
 }

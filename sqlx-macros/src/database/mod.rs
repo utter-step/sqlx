@@ -19,10 +19,18 @@ pub trait DatabaseExt: Database {
     fn param_type_for_id(id: &Self::TypeInfo) -> Option<&'static str>;
 
     fn return_type_for_id(id: &Self::TypeInfo) -> Option<&'static str>;
+    
+    fn get_feature_gate(info: &Self::TypeInfo) -> Option<&'static str>;
 }
 
 macro_rules! impl_database_ext {
-    ($database:path { $($(#[$meta:meta])? $ty:ty $(| $input:ty)?),*$(,)? }, ParamChecking::$param_checking:ident) => {
+    (
+        $database:path {
+            $($(#[$meta:meta])? $ty:ty $(| $input:ty)?),*$(,)?
+        },
+        ParamChecking::$param_checking:ident,
+        feature-types: $name:ident => $get_gate:expr,
+    ) => {
         impl $crate::database::DatabaseExt for $database {
             const DATABASE_PATH: &'static str = stringify!($database);
             const PARAM_CHECKING: $crate::database::ParamChecking = $crate::database::ParamChecking::$param_checking;
@@ -46,6 +54,10 @@ macro_rules! impl_database_ext {
                     )*
                     _ => None
                 }
+            }
+
+            fn get_feature_gate($name: &Self::TypeInfo) -> Option<&'static str> {
+                $get_gate
             }
         }
     }

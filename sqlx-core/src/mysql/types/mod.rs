@@ -54,12 +54,23 @@ impl MySqlTypeInfo {
     pub fn type_name(&self) -> &'static str {
         self.id.type_name()
     }
+
+    #[doc(hidden)]
+    pub fn type_feature_gate(&self) -> Option<&'static str> {
+        match self.id {
+            TypeId::DATE | TypeId::TIME | TypeId::DATETIME | TypeId::TIMESTAMP => Some("chrono"),
+            _ => None,
+        }
+    }
 }
 
 impl Display for MySqlTypeInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // TODO: Should we attempt to render the type *name* here?
-        write!(f, "ID {:#x}", self.id.0)
+        if self.id.type_name() != "<unknown>" {
+            write!(f, "{}", self.id)
+        } else {
+            write!(f, "ID {:#x}", self.id.0)
+        }
     }
 }
 

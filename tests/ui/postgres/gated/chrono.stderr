@@ -1,0 +1,31 @@
+error: support for column type date (type OID 1082) at position 0 (name: Some("now")) requires optional feature `chrono`
+ --> $DIR/chrono.rs:2:13
+  |
+2 |     let _ = sqlx::query!("select now()::date");
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in a macro outside of the current crate (in Nightly builds, run with -Z external-macro-backtrace for more info)
+
+error: support for column type time (type OID 1083) at position 0 (name: Some("now")) requires optional feature `chrono`
+ --> $DIR/chrono.rs:4:13
+  |
+4 |     let _ = sqlx::query!("select now()::time");
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in a macro outside of the current crate (in Nightly builds, run with -Z external-macro-backtrace for more info)
+
+error: support for column type timestamp (type OID 1114) at position 0 (name: Some("now")) requires optional feature `chrono`
+ --> $DIR/chrono.rs:6:13
+  |
+6 |     let _ = sqlx::query!("select now()::timestamp");
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in a macro outside of the current crate (in Nightly builds, run with -Z external-macro-backtrace for more info)
+
+error: support for column type timestamptz (type OID 1184) at position 0 (name: Some("now")) requires optional feature `chrono`
+ --> $DIR/chrono.rs:8:13
+  |
+8 |     let _ = sqlx::query!("select now()::timestamptz");
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in a macro outside of the current crate (in Nightly builds, run with -Z external-macro-backtrace for more info)

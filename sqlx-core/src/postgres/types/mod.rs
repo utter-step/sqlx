@@ -46,6 +46,15 @@ impl PgTypeInfo {
     pub fn type_name(&self) -> &str {
         self.name.as_deref().unwrap_or("<UNKNOWN>")
     }
+
+    #[doc(hidden)]
+    pub fn type_feature_gate(&self) -> Option<&'static str> {
+        match self.id {
+            TypeId::DATE | TypeId::TIME | TypeId::TIMESTAMP | TypeId::TIMESTAMPTZ => Some("chrono"),
+            TypeId::UUID => Some("uuid"),
+            _ => None,
+        }
+    }
 }
 
 impl Display for PgTypeInfo {

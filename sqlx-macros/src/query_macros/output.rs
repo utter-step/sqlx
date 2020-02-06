@@ -26,10 +26,17 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
 
             let type_ = <DB as DatabaseExt>::return_type_for_id(&column.type_info)
                 .ok_or_else(|| {
-                    format!(
-                        "unknown output type {} for column at position {} (name: {:?})",
-                        column.type_info, i, column.name
-                    )
+                    if let Some(feature_gate) = <DB as DatabaseExt>::get_feature_gate(&column.type_info) {
+                        format!(
+                            "support for column type {} at position {} (name: {:?}) requires optional feature `{}`",
+                            &column.type_info, i, column.name, feature_gate
+                        )
+                    } else {
+                        format!(
+                            "unknown output type {} for column at position {} (name: {:?})",
+                            column.type_info, i, column.name
+                        )
+                    }
                 })?
                 .parse::<TokenStream>()
                 .unwrap();
