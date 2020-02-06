@@ -95,7 +95,15 @@ async fn test_describe() -> anyhow::Result<()> {
     assert_eq!(describe.result_columns[2].nullability, Nullable);
     assert_eq!(describe.result_columns[2].type_info.type_name(), "TEXT");
     assert_eq!(describe.result_columns[3].nullability, NonNull);
-    assert_eq!(describe.result_columns[3].type_info.type_name(), "BIG_INT");
+
+    let bool_ty_name = describe.result_columns[3].type_info.type_name();
+
+    // MySQL 5.7, 8 and MariaDB 10.1 return BIG_INT, MariaDB 10.4 returns INT (optimization?)
+    assert!(
+        ["BIG_INT", "INT"].contains(&bool_ty_name),
+        "type name returned: {}",
+        bool_ty_name
+    );
 
     Ok(())
 }
