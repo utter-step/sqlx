@@ -1625,7 +1625,6 @@ dependencies = [
  "env_logger",
  "futures 0.3.1",
  "sqlx-core 0.2.5",
- "sqlx-macros 0.2.4",
  "tokio 0.2.11",
  "trybuild",
 ]
@@ -1700,6 +1699,15 @@ dependencies = [
  "sha-1",
  "sha2",
  "url",
+]
+
+[[package]]
+name = "sqlx-example-postgres-hello_world"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-std",
+ "sqlx 0.2.5",
 ]
 
 [[package]]

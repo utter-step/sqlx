@@ -61,7 +61,15 @@ where
         self.rbuf_rindex += cnt;
     }
 
+    pub async fn next(&mut self, cnt: usize) -> io::Result<Option<&[u8]>> {
+        self.read(cnt, true).await
+    }
+
     pub async fn peek(&mut self, cnt: usize) -> io::Result<Option<&[u8]>> {
+        self.read(cnt, false).await
+    }
+
+    async fn read(&mut self, cnt: usize, consume: bool) -> io::Result<Option<&[u8]>> {
         loop {
             // Reaching end-of-file (read 0 bytes) will continuously
             // return None from all future calls to read
@@ -73,6 +81,10 @@ where
             // return immediately
             if self.rbuf_windex >= (self.rbuf_rindex + cnt) {
                 let buf = &self.rbuf[self.rbuf_rindex..(self.rbuf_rindex + cnt)];
+
+                if consume {
+                    self.rbuf_rindex += cnt;
+                }
 
                 return Ok(Some(buf));
             }

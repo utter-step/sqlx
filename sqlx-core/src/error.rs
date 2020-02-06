@@ -46,6 +46,9 @@ pub enum Error {
 
     /// An error occurred during a TLS upgrade.
     TlsUpgrade(Box<dyn StdError + Send + Sync>),
+
+    /// An unexpected `NULL` was encountered while decoding.
+    UnexpectedNull,
 }
 
 impl StdError for Error {
@@ -72,6 +75,10 @@ impl Display for Error {
             Error::UrlParse(error) => write!(f, "{}", error),
 
             Error::Database(error) => Display::fmt(error, f),
+
+            Error::UnexpectedNull => f.write_str(
+                "unexpected NULL value; hint: query as Option<_> to support nullable values",
+            ),
 
             Error::NotFound => f.write_str("found no rows when we expected at least one"),
 

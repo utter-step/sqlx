@@ -1,4 +1,5 @@
 use crate::database::{Database, HasCursor};
+use crate::sealed::Sealed;
 
 /// A type that contains or can provide a database connection to use for executing queries
 /// against the database.
@@ -11,8 +12,8 @@ use crate::database::{Database, HasCursor};
 /// [`&mut PoolConnection`](struct.PoolConnection.html),
 /// and [`&mut Connection`](trait.Connection.html).
 /// ```
-// TODO: Sealed
-pub trait Executor<'con>
+// 'e: the lifetime of the Executor reference; all impls for Executor are for references
+pub trait Executor<'e>: Sealed
 where
     Self: Send,
 {
@@ -20,15 +21,12 @@ where
     type Database: Database;
 
     /// Executes a query that may or may not return a result set.
-    fn execute<'q, E>(self, query: E) -> <Self::Database as HasCursor<'con>>::Cursor
+    fn execute<'q, E>(self, query: E) -> <Self::Database as HasCursor<'e>>::Cursor
     where
         E: Execute<'q, Self::Database>;
 
     #[doc(hidden)]
-    fn execute_by_ref<'q, 'e, E>(
-        &'e mut self,
-        query: E,
-    ) -> <Self::Database as HasCursor<'e>>::Cursor
+    fn execute_by_ref<'q, E>(&mut self, query: E) -> <Self::Database as HasCursor<'_>>::Cursor
     where
         E: Execute<'q, Self::Database>;
 }

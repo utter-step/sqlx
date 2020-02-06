@@ -2,6 +2,8 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+mod sealed;
+
 #[macro_use]
 pub mod error;
 
@@ -52,22 +54,20 @@ pub use database::Database;
 pub use error::{Error, Result};
 
 pub use connection::{Connect, Connection};
+pub use cursor::Cursor;
 pub use executor::Executor;
 pub use query::{query, Query};
 //pub use query_as::{query_as, QueryAs};
-//pub use transaction::Transaction;
+pub use transaction::Transaction;
 
 //#[doc(hidden)]
 //pub use query_as::query_as_mapped;
 
-//#[doc(inline)]
-//pub use pool::Pool;
-
-//#[doc(inline)]
-//pub use row::{FromRow, Row};
+#[doc(inline)]
+pub use pool::Pool;
 
 #[doc(inline)]
-pub use row::Row;
+pub use row::{FromRow, Row};
 
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]

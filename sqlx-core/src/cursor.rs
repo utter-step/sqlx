@@ -13,7 +13,8 @@ use crate::database::{Database, HasRow};
 /// Initially the `Cursor` is positioned before the first row. The `next` method moves the cursor
 /// to the next row, and because it returns `None` when there are no more rows, it can be used
 /// in a `while` loop to iterate through all returned rows.
-pub trait Cursor<'con>
+// 'e: the lifetime of the Executor reference
+pub trait Cursor<'e>
 where
     Self: Send,
     Self: Future<Output = crate::Result<u64>>,
@@ -23,16 +24,13 @@ where
     /// Fetch the first row in the result. Returns `None` if no row is present.
     ///
     /// Returns `Error::MoreThanOneRow` if more than one row is in the result.
-    fn first(self)
-        -> BoxFuture<'con, crate::Result<Option<<Self::Database as HasRow<'con>>::Row>>>;
+    fn first(self) -> BoxFuture<'e, crate::Result<Option<<Self::Database as HasRow<'e>>::Row>>>;
 
     /// Fetch the next row in the result. Returns `None` if there are no more rows.
-    fn next<'cur: 'con>(
-        &'cur mut self,
-    ) -> BoxFuture<'cur, crate::Result<Option<<Self::Database as HasRow<'cur>>::Row>>>;
+    fn next(&mut self) -> BoxFuture<crate::Result<Option<<Self::Database as HasRow>::Row>>>;
 
     /// Map the `Row`s in this result to a different type, returning a [`Stream`] of the results.
-    fn map<T, F>(self, f: F) -> BoxStream<'con, crate::Result<T>>
+    fn map<T, F>(self, f: F) -> BoxStream<'e, crate::Result<T>>
     where
-        F: Fn(<Self::Database as HasRow<'con>>::Row) -> T;
+        F: Fn(<Self::Database as HasRow<'e>>::Row) -> T;
 }

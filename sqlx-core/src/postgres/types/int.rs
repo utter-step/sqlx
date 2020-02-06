@@ -1,19 +1,19 @@
 use byteorder::{ByteOrder, NetworkEndian};
 
-use crate::decode::{Decode, DecodeError};
+use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
 use crate::postgres::Postgres;
-use crate::types::HasSqlType;
+use crate::types::Type;
 
-impl HasSqlType<i16> for Postgres {
+impl Type<Postgres> for i16 {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::INT2)
     }
 }
 
-impl HasSqlType<[i16]> for Postgres {
+impl Type<Postgres> for [i16] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::ARRAY_INT2)
     }
@@ -25,19 +25,20 @@ impl Encode<Postgres> for i16 {
     }
 }
 
-impl Decode<Postgres> for i16 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(NetworkEndian::read_i16(buf))
+impl<'de> Decode<'de, Postgres> for i16 {
+    fn decode(buf: Option<&'de [u8]>) -> crate::Result<Self> {
+        // Ok(NetworkEndian::read_i16(buf))
+        todo!()
     }
 }
 
-impl HasSqlType<i32> for Postgres {
+impl Type<Postgres> for i32 {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::INT4)
     }
 }
 
-impl HasSqlType<[i32]> for Postgres {
+impl Type<Postgres> for [i32] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::ARRAY_INT4)
     }
@@ -49,19 +50,20 @@ impl Encode<Postgres> for i32 {
     }
 }
 
-impl Decode<Postgres> for i32 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(NetworkEndian::read_i32(buf))
+impl<'de> Decode<'de, Postgres> for i32 {
+    fn decode(buf: Option<&'de [u8]>) -> crate::Result<Self> {
+        // Ok(NetworkEndian::read_i32(buf))
+        todo!()
     }
 }
 
-impl HasSqlType<i64> for Postgres {
+impl Type<Postgres> for i64 {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::INT8)
     }
 }
 
-impl HasSqlType<[i64]> for Postgres {
+impl Type<Postgres> for [i64] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::ARRAY_INT8)
     }
@@ -73,8 +75,9 @@ impl Encode<Postgres> for i64 {
     }
 }
 
-impl Decode<Postgres> for i64 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(NetworkEndian::read_i64(buf))
+impl<'de> Decode<'de, Postgres> for i64 {
+    fn decode(buf: Option<&'de [u8]>) -> crate::Result<Self> {
+        buf.map(NetworkEndian::read_i64)
+            .ok_or(crate::Error::UnexpectedNull)
     }
 }

@@ -4,12 +4,12 @@ use byteorder::NetworkEndian;
 use std::fmt::{self, Debug};
 use std::ops::Range;
 
-pub struct DataRow {
-    buffer: Box<[u8]>,
+pub struct DataRow<'s> {
+    buffer: &'s [u8],
     values: Box<[Option<Range<u32>>]>,
 }
 
-impl DataRow {
+impl DataRow<'_> {
     pub fn len(&self) -> usize {
         self.values.len()
     }
@@ -21,10 +21,13 @@ impl DataRow {
     }
 }
 
-impl Decode for DataRow {
-    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
+impl<'de> DataRow<'de> {
+    pub(crate) fn decode(mut buf: &'de [u8]) -> crate::Result<Self> {
         let len = buf.get_u16::<NetworkEndian>()? as usize;
-        let buffer: Box<[u8]> = buf.into();
+
+        //        let buffer: Box<[u8]> = buf.into();
+        let buffer = buf;
+
         let mut values = Vec::with_capacity(len);
         let mut index = 4;
 
@@ -53,22 +56,6 @@ impl Decode for DataRow {
     }
 }
 
-impl Debug for DataRow {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "DataRow(")?;
-
-        let len = self.values.len();
-
-        f.debug_list()
-            .entries((0..len).map(|i| self.get(i).map(ByteStr)))
-            .finish()?;
-
-        write!(f, ")")?;
-
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::{DataRow, Decode};
@@ -84,10 +71,5 @@ mod tests {
         assert_eq!(m.get(0), Some(&b"1"[..]));
         assert_eq!(m.get(1), Some(&b"2"[..]));
         assert_eq!(m.get(2), Some(&b"3"[..]));
-
-        assert_eq!(
-            format!("{:?}", m),
-            "DataRow([Some(b\"1\"), Some(b\"2\"), Some(b\"3\")])"
-        );
     }
 }

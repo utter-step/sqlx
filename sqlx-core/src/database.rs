@@ -32,18 +32,21 @@ where
     type RawBuffer;
 }
 
-pub trait HasRawValue<'c> {
+// 's: the lifetime of the database server connection or socket
+pub trait HasRawValue<'s> {
     type RawValue;
 }
 
-pub trait HasRow<'c> {
+// 's: the lifetime of the database server connection or socket
+pub trait HasRow<'s> {
     type Database: Database;
 
-    type Row: Row<'c, Database = Self::Database>;
+    type Row: Row<'s, Database = Self::Database>;
 }
 
-pub trait HasCursor<'con> {
+// 'e: the lifetime of the Executor reference
+pub trait HasCursor<'e> {
     type Database: Database;
 
-    type Cursor: Cursor<'con, Database = Self::Database>;
+    type Cursor: Cursor<'e, Database = Self::Database>;
 }

@@ -3,7 +3,7 @@ use byteorder::{ByteOrder, NetworkEndian};
 use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
 use crate::io::BufMut;
-use crate::types::HasSqlType;
+use crate::types::Type;
 use crate::Postgres;
 
 #[derive(Default)]
@@ -33,14 +33,14 @@ impl Arguments for PgArguments {
 
     fn add<T>(&mut self, value: T)
     where
-        Self::Database: HasSqlType<T>,
+        T: Type<Self::Database>,
         T: Encode<Self::Database>,
     {
         // TODO: When/if we receive types that do _not_ support BINARY, we need to check here
         // TODO: There is no need to be explicit unless we are expecting mixed BINARY / TEXT
 
         self.types
-            .push(<Postgres as HasSqlType<T>>::type_info().id.0);
+            .push(<T as Type<Self::Database>>::type_info().id.0);
 
         let pos = self.values.len();
 
