@@ -180,13 +180,13 @@ async fn test_describe() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(describe.result_columns[0].nullability, NonNull);
-    assert_eq!(describe.result_columns[0].type_info.type_name(), "int4");
+    assert_eq!(describe.result_columns[0].type_info.type_name(), "INT4");
     assert_eq!(describe.result_columns[1].nullability, NonNull);
-    assert_eq!(describe.result_columns[1].type_info.type_name(), "text");
+    assert_eq!(describe.result_columns[1].type_info.type_name(), "TEXT");
     assert_eq!(describe.result_columns[2].nullability, Nullable);
-    assert_eq!(describe.result_columns[2].type_info.type_name(), "bytea");
+    assert_eq!(describe.result_columns[2].type_info.type_name(), "BYTEA");
     assert_eq!(describe.result_columns[3].nullability, Unknown);
-    assert_eq!(describe.result_columns[3].type_info.type_name(), "bool");
+    assert_eq!(describe.result_columns[3].type_info.type_name(), "BOOL");
 
     Ok(())
 }

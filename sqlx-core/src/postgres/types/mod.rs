@@ -60,9 +60,9 @@ impl PgTypeInfo {
 impl Display for PgTypeInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(ref name) = self.name {
-            write!(f, "{} (type OID {})", *name, self.id.0)
+            write!(f, "{}", *name)
         } else {
-            write!(f, "{}", self.id.0)
+            write!(f, "OID {}", self.id.0)
         }
     }
 }

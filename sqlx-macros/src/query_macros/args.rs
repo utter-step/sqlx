@@ -35,14 +35,14 @@ pub fn quote_args<DB: DatabaseExt>(
                     .ok_or_else(|| {
                         if let Some(feature_gate) = <DB as DatabaseExt>::get_feature_gate(&type_) {
                             format!(
-                                "support for type {} of param #{} requires optional feature `{}`",
+                                "optional feature `{}` required for type {} of param #{}",
+                                feature_gate,
                                 type_,
                                 i + 1,
-                                feature_gate
                             )
                             .into()
                         } else {
-                            format!("unknown param type {} for param #{}", type_, i + 1).into()
+                            format!("unsupported type {} for param #{}", type_, i + 1).into()
                         }
                     })
             })

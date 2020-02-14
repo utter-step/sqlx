@@ -6,9 +6,29 @@ use sqlx::describe::Describe;
 
 use crate::database::DatabaseExt;
 
+use std::fmt::{self, Display, Formatter};
+
 pub struct RustColumn {
     pub(super) ident: Ident,
     pub(super) type_: TokenStream,
+}
+
+struct DisplayColumn<'a> {
+    // zero-based index, converted to 1-based number
+    idx: usize,
+    name: Option<&'a str>,
+}
+
+impl Display for DisplayColumn<'_> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let num = self.idx + 1;
+
+        if let Some(name) = self.name {
+            write!(f, "column #{} ({:?})", num, name)
+        } else {
+            write!(f, "column #{}", num)
+        }
+    }
 }
 
 pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Result<Vec<RustColumn>> {
@@ -26,15 +46,26 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
 
             let type_ = <DB as DatabaseExt>::return_type_for_id(&column.type_info)
                 .ok_or_else(|| {
-                    if let Some(feature_gate) = <DB as DatabaseExt>::get_feature_gate(&column.type_info) {
+                    if let Some(feature_gate) =
+                        <DB as DatabaseExt>::get_feature_gate(&column.type_info)
+                    {
                         format!(
-                            "support for column type {} at position {} (name: {:?}) requires optional feature `{}`",
-                            &column.type_info, i, column.name, feature_gate
+                            "optional feature `{feat}` required for type {ty} of {col}",
+                            ty = &column.type_info,
+                            feat = feature_gate,
+                            col = DisplayColumn {
+                                idx: i,
+                                name: column.name.as_deref()
+                            }
                         )
                     } else {
                         format!(
-                            "unknown output type {} for column at position {} (name: {:?})",
-                            column.type_info, i, column.name
+                            "unsupported type {ty} of {col}",
+                            ty = column.type_info,
+                            col = DisplayColumn {
+                                idx: i,
+                                name: column.name.as_deref()
+                            }
                         )
                     }
                 })?

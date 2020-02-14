@@ -9,13 +9,13 @@ use crate::types::HasSqlType;
 
 impl HasSqlType<Uuid> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::UUID, "uuid")
+        PgTypeInfo::new(TypeId::UUID, "UUID")
     }
 }
 
 impl HasSqlType<[Uuid]> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_UUID, "uuid[]")
+        PgTypeInfo::new(TypeId::ARRAY_UUID, "UUID[]")
     }
 }
 

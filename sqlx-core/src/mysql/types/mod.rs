@@ -67,7 +67,7 @@ impl MySqlTypeInfo {
 impl Display for MySqlTypeInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.id.type_name() != "<unknown>" {
-            write!(f, "{}", self.id)
+            write!(f, "{}", self.id.type_name())
         } else {
             write!(f, "ID {:#x}", self.id.0)
         }

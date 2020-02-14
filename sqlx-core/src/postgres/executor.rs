@@ -325,7 +325,8 @@ impl super::PgConnection {
             return Ok(HashMap::new());
         }
 
-        let mut query = "select types.type_id, pg_type.typname from (VALUES ".to_string();
+        // uppercase type names are easier to visually identify
+        let mut query = "select types.type_id, UPPER(pg_type.typname) from (VALUES ".to_string();
         let mut args = PgArguments::default();
         let mut pushed = false;
 

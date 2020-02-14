@@ -9,13 +9,13 @@ use crate::Postgres;
 
 impl HasSqlType<str> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::TEXT, "text")
+        PgTypeInfo::new(TypeId::TEXT, "TEXT")
     }
 }
 
 impl HasSqlType<[&'_ str]> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_TEXT, "text")
+        PgTypeInfo::new(TypeId::ARRAY_TEXT, "TEXT")
     }
 }
 

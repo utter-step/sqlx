@@ -7,13 +7,13 @@ use crate::types::HasSqlType;
 
 impl HasSqlType<bool> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::BOOL, "bool")
+        PgTypeInfo::new(TypeId::BOOL, "BOOL")
     }
 }
 
 impl HasSqlType<[bool]> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_BOOL, "bool[]")
+        PgTypeInfo::new(TypeId::ARRAY_BOOL, "BOOL[]")
     }
 }
 

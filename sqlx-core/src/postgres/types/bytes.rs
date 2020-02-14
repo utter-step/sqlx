@@ -7,13 +7,13 @@ use crate::types::HasSqlType;
 
 impl HasSqlType<[u8]> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::BYTEA, "bytea")
+        PgTypeInfo::new(TypeId::BYTEA, "BYTEA")
     }
 }
 
 impl HasSqlType<[&'_ [u8]]> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_BYTEA, "bytea[]")
+        PgTypeInfo::new(TypeId::ARRAY_BYTEA, "BYTEA[]")
     }
 }
 
