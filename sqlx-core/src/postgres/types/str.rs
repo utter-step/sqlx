@@ -15,7 +15,7 @@ impl HasSqlType<str> for Postgres {
 
 impl HasSqlType<[&'_ str]> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_TEXT, "TEXT")
+        PgTypeInfo::new(TypeId::ARRAY_TEXT, "TEXT[]")
     }
 }
 
