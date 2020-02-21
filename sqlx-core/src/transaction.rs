@@ -136,7 +136,10 @@ where
 {
     type Database = <T as Connection>::Database;
 
-    fn execute<'q, E>(self, query: E) -> <<T as Connection>::Database as HasCursor<'c, 'q>>::Cursor
+    fn execute<'q, E>(
+        self,
+        query: E,
+    ) -> <<T as Connection>::Database as HasCursor<'c, 'q, DB>>::Cursor
     where
         E: Execute<'q, Self::Database>,
     {
@@ -146,7 +149,7 @@ where
     fn execute_by_ref<'q, 'e, E>(
         &'e mut self,
         query: E,
-    ) -> <Self::Database as HasCursor<'e, 'q>>::Cursor
+    ) -> <Self::Database as HasCursor<'e, 'q, DB>>::Cursor
     where
         E: Execute<'q, Self::Database>,
     {

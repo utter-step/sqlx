@@ -9,7 +9,7 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 
 use crate::connection::{ConnectionSource, MaybeOwnedConnection};
-use crate::cursor::{Cursor, MapRowFn};
+use crate::cursor::Cursor;
 use crate::database::HasRow;
 use crate::executor::Execute;
 use crate::pool::{Pool, PoolConnection};
@@ -31,14 +31,12 @@ pub struct PgCursor<'c, 'q> {
     state: State<'c, 'q>,
 }
 
-impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
-    type Database = Postgres;
-
+impl<'c, 'q> Cursor<'c, 'q, Postgres> for PgCursor<'c, 'q> {
     #[doc(hidden)]
-    fn from_pool<E>(pool: &Pool<<Self::Database as Database>::Connection>, query: E) -> Self
+    fn from_pool<E>(pool: &Pool<PgConnection>, query: E) -> Self
     where
         Self: Sized,
-        E: Execute<'q, Self::Database>,
+        E: Execute<'q, Postgres>,
     {
         let (query, arguments) = query.into_parts();
 
@@ -53,8 +51,8 @@ impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
     fn from_connection<E, C>(conn: C, query: E) -> Self
     where
         Self: Sized,
-        C: Into<MaybeOwnedConnection<'c, <Self::Database as Database>::Connection>>,
-        E: Execute<'q, Self::Database>,
+        C: Into<MaybeOwnedConnection<'c, PgConnection>>,
+        E: Execute<'q, Postgres>,
     {
         let (query, arguments) = query.into_parts();
 
@@ -65,26 +63,32 @@ impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
         }
     }
 
-    fn first(self) -> BoxFuture<'c, crate::Result<Option<<Self::Database as HasRow<'c>>::Row>>>
+    fn first(self) -> BoxFuture<'c, crate::Result<Option<PgRow<'c>>>>
     where
         'q: 'c,
     {
         Box::pin(first(self))
     }
 
-    fn next(&mut self) -> BoxFuture<crate::Result<Option<<Self::Database as HasRow<'_>>::Row>>> {
+    fn next(&mut self) -> BoxFuture<crate::Result<Option<PgRow<'_>>>> {
         Box::pin(next(self))
     }
 
-    fn map<T, F>(mut self, f: F) -> BoxStream<'c, crate::Result<T>>
+    fn map<'a, T, F>(mut self, f: F) -> BoxStream<'a, crate::Result<T>>
     where
-        F: MapRowFn<Self::Database, T>,
-        T: 'c + Send + Unpin,
+        F: Send + Sync + 'static,
+        T: Send + Unpin + 'static,
+        // F: Fn(PgRow<'_>) -> T,
+        F: for<'b> Fn(<Postgres as HasRow<'b>>::Row) -> T,
         'q: 'c,
+        'c: 'a,
     {
         Box::pin(try_stream! {
-            while let Some(row) = self.next().await? {
-                yield f.call(row);
+            loop {
+                let row = next(&mut self).await?;
+                if let Some(row) = row {
+                    yield f(row);
+                }
             }
         })
     }
@@ -144,7 +148,7 @@ async fn write(
     arguments: Option<PgArguments>,
 ) -> crate::Result<()> {
     // TODO: Handle [arguments] being None. This should be a SIMPLE query.
-    let arguments = arguments.unwrap();
+    let arguments = arguments.expect("simple queries not implemented yet");
 
     // Check the statement cache for a statement ID that matches the given query
     // If it doesn't exist, we generate a new statement ID and write out [Parse] to the
