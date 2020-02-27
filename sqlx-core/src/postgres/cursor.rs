@@ -1,22 +1,24 @@
 use std::future::Future;
 use std::mem;
 use std::pin::Pin;
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::io;
 use std::task::{Context, Poll};
 
 use async_stream::try_stream;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
+use futures_core::Stream;
 
 use crate::connection::{ConnectionSource, MaybeOwnedConnection};
 use crate::cursor::Cursor;
 use crate::database::HasRow;
 use crate::executor::Execute;
 use crate::pool::{Pool, PoolConnection};
-use crate::postgres::protocol::{CommandComplete, DataRow, Message, StatementId};
+use crate::postgres::protocol::{CommandComplete, DataRow, Describe, Message, StatementId};
 use crate::postgres::{PgArguments, PgConnection, PgRow};
 use crate::{Database, Postgres};
-use futures_core::Stream;
 
 enum State<'c, 'q> {
     Query(&'q str, Option<PgArguments>),
@@ -129,21 +131,23 @@ async fn write(
     conn: &mut PgConnection,
     query: &str,
     arguments: Option<PgArguments>,
-) -> crate::Result<()> {
+) -> crate::Result<Option<StatementId>> {
+    let mut statement = None;
+
     if let Some(arguments) = arguments {
         // Check the statement cache for a statement ID that matches the given query
         // If it doesn't exist, we generate a new statement ID and write out [Parse] to the
         // connection command buffer
-        let statement = conn.write_prepare(query, &arguments);
+        let stmt = conn.write_prepare(query, &arguments);
 
         // Next, [Bind] attaches the arguments to the statement and creates a named portal
-        conn.write_bind("", statement, &arguments);
+        conn.write_bind("", stmt, &arguments);
 
         // Next, [Describe] will return the expected result columns and types
         // Conditionally run [Describe] only if the results have not been cached
-        // if !self.statement_cache.has_columns(statement) {
-        //     self.write_describe(protocol::Describe::Portal(""));
-        // }
+        if !conn.statement_cache.has_columns(stmt) {
+            conn.write_describe(Describe::Portal(""));
+        }
 
         // Next, [Execute] then executes the named portal
         conn.write_execute("", 0);
@@ -154,6 +158,9 @@ async fn write(
         // is still serial but it would reduce round-trips. Some kind of builder pattern that is
         // termed batching might suit this.
         conn.write_sync();
+
+        // This branch produced a statement ID
+        statement = Some(stmt);
     } else {
         // https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.4
         conn.write_simple_query(query);
@@ -164,7 +171,7 @@ async fn write(
     conn.stream.flush().await?;
     conn.is_ready = false;
 
-    Ok(())
+    Ok(statement)
 }
 
 async fn resolve(
@@ -219,23 +226,31 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
 ) -> crate::Result<Option<PgRow<'a>>> {
     let mut conn = cursor.source.resolve_by_ref().await?;
 
-    match cursor.state {
+    let statement = match cursor.state {
         State::Query(q, ref mut arguments) => {
             // write out the query to the connection
-            write(&mut *conn, q, arguments.take()).await?;
+            let statement = write(&mut *conn, q, arguments.take()).await?;
 
             // next time we come through here, skip this block
-            cursor.state = State::NextRow;
+            cursor.state = State::NextRow(statement);
+            statement
         }
 
         State::Resolve(_) | State::AffectedRows(_) => {
             panic!("`PgCursor` must not be used after being polled");
         }
 
-        State::NextRow => {
+        State::NextRow(statement) => {
             // grab the next row
+            statement
         }
-    }
+    };
+
+    let columns = if let Some(statement) = statement {
+        get_or_receive_columns(&mut *conn)
+    } else {
+        Arc::default()
+    };
 
     loop {
         match conn.stream.read().await? {
@@ -253,7 +268,7 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
 
                 return Ok(Some(PgRow {
                     connection: conn,
-                    columns: Arc::default(),
+                    columns,
                     data,
                 }));
             }
@@ -313,4 +328,40 @@ async fn first<'c, 'q>(mut cursor: PgCursor<'c, 'q>) -> crate::Result<Option<PgR
     }
 
     Ok(None)
+}
+
+async fn get_or_receive_columns(
+    conn: &mut PgConnection,
+    statement: StatementId,
+) -> crate::Result<Arc<HashMap<Box<str>, usize>>> {
+    if !conn.statement_cache.has_columns(statement) {
+        let description = match conn.stream.read().await? {
+            Some(Message::RowDescription(rd)) => Some(rd),
+            Some(Message::NoData) => None,
+
+            Some(message) => {
+                return Err(protocol_err!("get_or_receive_columns: unexpected message: {:?}", message).into());
+            }
+
+            None => {
+                return Err(io::Error::from(io::ErrorKind::ConnectionAborted).into());
+            }
+        };
+
+        let mut columns = HashMap::new();
+
+        if let Some(description) = description {
+            columns.reserve(description.fields.len());
+
+            for (index, field) in description.fields.iter().enumerate() {
+                if let Some(name) = &field.name {
+                    columns.insert(name.clone(), index);
+                }
+            }
+        }
+
+        conn.statement_cache.put_columns(statement, columns);
+    }
+
+    Ok(conn.statement_cache.get_columns(statement))
 }

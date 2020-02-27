@@ -20,8 +20,6 @@ use crate::postgres::{PgError, PgTypeInfo};
 use crate::url::Url;
 use crate::{Error, Executor, Postgres};
 
-// TODO: TLS
-
 /// An asynchronous connection to a [Postgres][super::Postgres] database.
 ///
 /// The connection string expected by [Connect::connect] should be a PostgreSQL connection
@@ -86,9 +84,11 @@ pub struct PgConnection {
     pub(super) stream: PgStream,
     pub(super) next_statement_id: u32,
     pub(super) is_ready: bool,
+    pub(super) statement_cache: StatementCache<StatementId>,
 
-    // TODO: Think of a better way to do this, better name perhaps?
-    pub(super) data_row_values_buf: Vec<Option<Range<u32>>>,
+    // The list of ranges into the stream buffer for a [DataRow]
+    // The value of this is undefined if the most recent message from the server was not DataRow
+    pub(super) current_row_values: Vec<Option<Range<u32>>>,
 }
 
 // https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.3
@@ -234,7 +234,9 @@ impl PgConnection {
 
         Ok(Self {
             stream,
-            data_row_values_buf: Vec::new(),
+            statement_cache: StatementCache::new(),
+            current_row_values: Vec::with_capacity(10),
+            // statement IDs in posgres start at 1
             next_statement_id: 1,
             is_ready: true,
         })

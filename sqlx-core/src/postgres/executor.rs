@@ -13,21 +13,22 @@ impl PgConnection {
     }
 
     pub(crate) fn write_prepare(&mut self, query: &str, args: &PgArguments) -> StatementId {
-        // TODO: check query cache
+        if let Some(&id) = self.statement_cache.get(query) {
+            id
+        } else {
+            let id = StatementId(self.next_statement_id);
+            self.next_statement_id += 1;
 
-        let id = StatementId(self.next_statement_id);
+            self.stream.write(protocol::Parse {
+                statement: id,
+                query,
+                param_types: &*args.types,
+            });
 
-        self.next_statement_id += 1;
+            self.statement_cache.put(query.to_owned(), id);
 
-        self.stream.write(protocol::Parse {
-            statement: id,
-            query,
-            param_types: &*args.types,
-        });
-
-        // TODO: write to query cache
-
-        id
+            id
+        }
     }
 
     pub(crate) fn write_describe(&mut self, d: protocol::Describe) {
