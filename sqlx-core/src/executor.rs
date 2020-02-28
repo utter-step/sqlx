@@ -21,8 +21,13 @@ where
     /// The specific database that this type is implemented for.
     type Database: Database;
 
-    /// Executes a query that may or may not return a result set.
-    fn execute<'q, E>(
+    /// Execute a query, returning the number of rows affected and discarding the result set.
+    fn execute<'q, E>(&mut self, query: E) -> BoxFuture<crate::Result<u64>>
+    where
+        E: Execute<'q, Self::Database>;
+
+    /// Execute a query that may or may not return a result set.
+    fn fetch<'q, E>(
         self,
         query: E,
     ) -> <Self::Database as HasCursor<'c, 'q, Self::Database>>::Cursor
@@ -30,7 +35,7 @@ where
         E: Execute<'q, Self::Database>;
 
     #[doc(hidden)]
-    fn execute_by_ref<'b, E>(
+    fn fetch_by_ref<'b, E>(
         &mut self,
         query: E,
     ) -> <Self::Database as HasCursor<'_, 'b, Self::Database>>::Cursor

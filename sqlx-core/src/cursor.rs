@@ -3,7 +3,6 @@ use std::future::Future;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 
-use crate::connection::MaybeOwnedConnection;
 use crate::database::{Database, HasRow};
 use crate::executor::Execute;
 use crate::{Connect, Pool, Row};
@@ -20,28 +19,7 @@ pub trait Cursor<'c, 'q, DB>
 where
     Self: Send,
     DB: Database,
-    // `.await`-ing a cursor will return the affected rows from the query
-    Self: Future<Output = crate::Result<u64>>,
 {
-    #[doc(hidden)]
-    fn from_pool<E>(pool: &Pool<DB::Connection>, query: E) -> Self
-    where
-        Self: Sized,
-        E: Execute<'q, DB>;
-
-    #[doc(hidden)]
-    fn from_connection<E, C>(conn: C, query: E) -> Self
-    where
-        Self: Sized,
-        DB::Connection: Connect,
-        C: Into<MaybeOwnedConnection<'c, DB::Connection>>,
-        E: Execute<'q, DB>;
-
-    #[doc(hidden)]
-    fn first(self) -> BoxFuture<'c, crate::Result<Option<<DB as HasRow<'c>>::Row>>>
-    where
-        'q: 'c;
-
     /// Fetch the next row in the result. Returns `None` if there are no more rows.
     fn next(&mut self) -> BoxFuture<crate::Result<Option<<DB as HasRow>::Row>>>;
 }

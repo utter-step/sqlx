@@ -65,6 +65,11 @@ where
     DB: Database,
 {
     /// Bind a value for use with this SQL query.
+    ///
+    ///
+    /// If the number of times this is called does not match the number of bind parameters that
+    /// appear in the query (`?` for most SQL flavors, `$1 .. $N` for Postgres) then an error
+    /// will be returned when this query is executed.
     pub fn bind<T>(mut self, value: T) -> Self
     where
         T: Type<DB>,
@@ -114,42 +119,34 @@ where
     DB: Database,
     Self: Execute<'q, DB>,
 {
+    /// Execute the query, returning the number of rows affected and ignoring the result (if any).
     pub async fn execute<'e, E>(self, executor: E) -> crate::Result<u64>
     where
         E: Executor<'e, Database = DB>,
     {
-        executor.execute(self).await
+        executor.fetch(self).await
     }
 
+    /// Execute the query, returning a type that behaves somewhat like [`Stream`].
+    ///
+    /// Note, however that the [`Row`][crate::row::Row] values that [`.next()`][Cursor::next] yields
+    /// borrow into the underlying connection's buffer and the lifetimes forbid more than one from
+    /// existing at a given time.
+    ///
+    /// This is a low-level API that that amortizes copying and allocations; it is meant as
+    /// a building block for more ergonomic interfaces.
+    ///
+    /// If you want an actual `Stream` that you can collect/fold/etc., you should call
+    /// [`.map()`][Query::map] which converts the rows to an owned type, and [`Map::fetch`]
+    /// will return a true `Stream` implementation.
+    ///
+    /// If want to map to a type that has [`FromRow`] implementation, then you can use
+    /// [`query_as`], instead of [`query`] and this method.
     pub fn fetch<'e, E>(self, executor: E) -> <DB as HasCursor<'e, 'q, DB>>::Cursor
     where
         E: Executor<'e, Database = DB>,
     {
-        executor.execute(self)
-    }
-
-    pub async fn fetch_optional<'e, E>(
-        self,
-        executor: E,
-    ) -> crate::Result<Option<<DB as HasRow<'e>>::Row>>
-    where
-        E: Executor<'e, Database = DB>,
-        'q: 'e,
-    {
-        executor.execute(self).first().await
-    }
-
-    pub async fn fetch_one<'e, E>(self, executor: E) -> crate::Result<<DB as HasRow<'e>>::Row>
-    where
-        E: Executor<'e, Database = DB>,
-        'q: 'e,
-    {
-        self.fetch_optional(executor)
-            .and_then(|row| match row {
-                Some(row) => ready(Ok(row)),
-                None => ready(Err(crate::Error::NotFound)),
-            })
-            .await
+        executor.fetch(self)
     }
 }
 
@@ -158,6 +155,10 @@ where
     DB: Database,
 {
     /// Bind a value for use with this SQL query.
+    ///
+    /// If the number of times this is called does not match the number of bind parameters that
+    /// appear in the query (`?` for most SQL flavors, `$1 .. $N` for Postgres) then an error
+    /// will be returned when this query is executed.
     pub fn bind<T>(mut self, value: T) -> Self
     where
         T: Type<DB>,
@@ -182,7 +183,7 @@ where
     Query<'q, DB, A>: Execute<'q, DB>,
     F: MapRow<DB>,
 {
-    /// Execute the query and get a [Stream] of the results, returning our mapped type.
+    /// Execute the query and get a [`Stream`] of the results, returning our mapped type.
     pub fn fetch<'e: 'q, E>(
         mut self,
         executor: E,
@@ -203,19 +204,20 @@ where
         }
     }
 
-    /// Get the first row in the result
+    /// Get the first row in the result, returning `None` if the result was empty.
     pub async fn fetch_optional<'e, E>(mut self, executor: E) -> crate::Result<Option<F::Mapped>>
     where
         E: Executor<'e, Database = DB>,
         'q: 'e,
     {
         // could be implemented in terms of `fetch()` but this avoids overhead from `try_stream!`
-        let mut cursor = executor.execute(self.query);
+        let mut cursor = executor.fetch(self.query);
         let mut mapper = self.mapper;
         let val = cursor.next().await?;
         val.map(|row| mapper.map_row(row)).transpose()
     }
 
+    /// Get the first row in the result, returning an error if the result was empty.
     pub async fn fetch_one<'e, E>(self, executor: E) -> crate::Result<F::Mapped>
     where
         E: Executor<'e, Database = DB>,
@@ -229,12 +231,15 @@ where
             .await
     }
 
+    /// Collect the results of the query to a `Vec`.
+    ///
+    /// Equivalent to `.fetch().try_collect::<Vec<_>>()` but possibly avoiding some overhead.
     pub async fn fetch_all<'e, E>(mut self, executor: E) -> crate::Result<Vec<F::Mapped>>
     where
         E: Executor<'e, Database = DB>,
         'q: 'e,
     {
-        let mut cursor = executor.execute(self.query);
+        let mut cursor = executor.fetch(self.query);
         let mut out = vec![];
 
         while let Some(row) = cursor.next().await? {
@@ -278,6 +283,8 @@ where
     }
 }
 
+/// Construct a raw SQL query that will map the rows of the result to a type implementing
+/// [`FromRow`].
 pub fn query_as<T, DB>(
     sql: &str,
 ) -> Map<DB, for<'c> fn(<DB as HasRow<'c>>::Row) -> crate::Result<T>>
